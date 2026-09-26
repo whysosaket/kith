@@ -64,6 +64,7 @@ struct KithMenu: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .scrollIndicators(.hidden)
             .frame(maxHeight: model.armedAction == nil ? 420 : 330)
             .fixedSize(horizontal: false, vertical: true)
 
