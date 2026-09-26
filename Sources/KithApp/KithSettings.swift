@@ -98,7 +98,8 @@ private struct MonitoringSettings: View {
     private func status(for surface: AgentSurface) -> String {
         if !model.hooksInstalled { return "Needs setup" }
         if !model.monitoringReady { return "Checking" }
-        return model.unavailable.contains(surface) ? "Unavailable" : "Available"
+        guard model.unavailable.contains(surface) else { return "Available" }
+        return surface == .codexDesktop && !model.accessibilityEnabled ? "Needs Accessibility" : "Unavailable"
     }
 }
 

@@ -199,6 +199,9 @@ struct KithMessageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss message")
+        if model.unavailable.contains(.codexDesktop) && !model.accessibilityEnabled {
+            return "Kith can't confirm: \(names). Codex Desktop needs Accessibility access. Finish actions remain blocked."
+        }
             }
         }
     }
