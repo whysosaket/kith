@@ -169,40 +169,59 @@ private struct KithPowerDisclosure: View {
     @State private var confirmingShutdown = false
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            VStack(alignment: .leading, spacing: 10) {
-                Toggle("Keep awake while working", isOn: $model.keepAwake)
-                Toggle("Allow closed-lid work", isOn: $model.closedLid)
-                    .disabled(!model.helperEnabled)
-                if !model.helperEnabled {
-                    Button("Enable closed-lid helper in Settings") { showSettings(.power) }
-                        .font(.caption)
-                }
-                if model.armedAction == nil {
-                    Menu("After work…") {
-                        Button("Sleep when work ends") { model.arm(.sleep) }
-                        Button("Shut down when work ends") { confirmingShutdown = true }
-                    }
-                    .disabled(model.finishActionBlockReason != nil)
-                    if let reason = model.finishActionBlockReason {
-                        Text(reason)
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Power").font(.subheadline.weight(.medium))
+                        Text(powerSummary)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Button("Review requirements") {
-                            showSettings(model.hasMonitoringIssue ? .monitoring : .power)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Power, \(powerSummary)")
+            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+
+            if expanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Keep awake while working", isOn: $model.keepAwake)
+                    Toggle("Allow closed-lid work", isOn: $model.closedLid)
+                        .disabled(!model.helperEnabled)
+                    if !model.helperEnabled {
+                        Button("Enable closed-lid helper in Settings") { showSettings(.power) }
+                            .font(.caption)
+                    }
+                    if model.armedAction == nil {
+                        Menu("After work…") {
+                            Button("Sleep when work ends") { model.arm(.sleep) }
+                            Button("Shut down when work ends") { confirmingShutdown = true }
                         }
-                        .font(.caption)
+                        .disabled(model.finishActionBlockReason != nil)
+                        if let reason = model.finishActionBlockReason {
+                            Text(reason)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button("Review requirements") {
+                                showSettings(model.hasMonitoringIssue ? .monitoring : .power)
+                            }
+                            .font(.caption)
+                        }
                     }
                 }
-            }
-            .padding(.top, 10)
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Power").font(.subheadline.weight(.medium))
-                Text(powerSummary)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .padding(.top, 10)
             }
         }
         .alert("Shut down when work ends?", isPresented: $confirmingShutdown) {
