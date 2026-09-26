@@ -23,7 +23,7 @@ Check event latency against the hook invocation time: under 5 seconds for hook e
 - Expand Power in the panel for the short controls, then open its full settings. The shared window must have Sessions and Settings tabs, keep one instance, and preserve the selected tab when reopened.
 - Disable a monitor and notifications. Their warnings must remain visible in the panel and shared window, with links to the relevant Settings panes. An unavailable monitor must never appear as finished work.
 - Arm sleep and shutdown in turn. The armed state and Cancel must remain visible while scrolling; shutdown must require confirmation, and the 60-second countdown must stay at the top of the panel.
-- Check light, dark, increased contrast, VoiceOver, keyboard navigation, long titles, duplicate titles, and a small display. Status must be clear without color, and the panel must remain within the display.
+- Check light, dark, increased contrast, VoiceOver, keyboard navigation, long titles, duplicate titles, and a small display. Settings text and controls must stay readable over the glass surface. Status must be clear without color, and the panel must remain within the display.
 
 ## Power and closed lid
 

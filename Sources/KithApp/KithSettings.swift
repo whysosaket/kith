@@ -5,6 +5,18 @@ struct KithSettingsPage: View {
     @EnvironmentObject private var model: KithModel
 
     var body: some View {
+        if #available(macOS 26.0, *) {
+            content
+                .padding(16)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+        } else {
+            content
+                .padding(16)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 14) {
             Picker("Settings section", selection: $model.settingsPane) {
                 ForEach(SettingsPane.allCases) { pane in
