@@ -10,11 +10,17 @@ On macOS 14 or later with Swift 6, run `scripts/build-app.sh`. The result is `di
 
 For closed-lid work, set `KITH_SIGN_IDENTITY` to an Apple-issued code-signing identity when building. The app and helper must use the same identity. Enable the helper in Kith settings and approve it in System Settings. The hidden `SleepDisabled` setting still needs physical validation on the target Mac before relying on it.
 
-Ad hoc builds change their code identity when rebuilt. macOS may leave Kith's Accessibility switch on while rejecting the updated binary; turn that switch off and on again after an ad hoc update. A stable signing identity avoids repeated privacy grants.
+### Local signing
+
+Run `scripts/create-signing-identity.sh` once before your first build. It creates a self-signed "Kith Local Signing" identity in your login keychain, and `scripts/build-app.sh` uses it automatically. macOS then recognizes each rebuild as the same app, so Accessibility and other privacy grants carry over. The identity is local to your Mac and is never committed. Set `KITH_LOCAL_IDENTITY` to use a different name.
+
+Without it, the build falls back to ad hoc signing, which changes Kith's code identity on every rebuild. macOS may leave Kith's Accessibility switch on while rejecting the new binary, and Codex Desktop then shows as unavailable. Remove Kith from System Settings → Privacy & Security → Accessibility and add it again after each ad hoc build.
+
+A self-signed identity is enough for monitoring and notifications. The closed-lid helper still needs an Apple-issued identity in `KITH_SIGN_IDENTITY`.
 
 ## First run
 
-Open Kith, then use Settings → Monitoring → Install hooks. Review and trust the Codex hooks with `/hooks` in Codex. Enable Kith under System Settings → Notifications, including notification sounds. Kith shows a warning when macOS disables its notifications or sounds. It only writes its own hook entries to `~/.claude/settings.json` and `~/.codex/hooks.json`; Remove hooks removes those entries while preserving unrelated settings.
+Open Kith, then use Settings → Monitoring → Install hooks. Review and trust the Codex hooks with `/hooks` in Codex. Enable Kith under System Settings → Notifications, including notification sounds. Kith shows a warning when macOS disables its notifications or sounds. If notifications show a blank icon instead of the Kith logo, macOS has cached an icon-less copy; run `sudo rm -rf /Library/Caches/com.apple.iconservices.store` and then `killall Dock NotificationCenter usernoted`. It only writes its own hook entries to `~/.claude/settings.json` and `~/.codex/hooks.json`; Remove hooks removes those entries while preserving unrelated settings.
 
 Kith reads local session metadata. It does not save prompts, transcripts, tool arguments, or credentials. A monitor shown as unavailable blocks automatic power actions. Grant Accessibility for the Codex Desktop fallback. Its prompt detection and closed-lid behavior still need live acceptance tests before relying on automatic power actions.
 
