@@ -16,7 +16,6 @@ plutil -replace CFBundleIdentifier -string "$bundle_id" "$app_dir/Contents/Info.
 plutil -replace CFBundleName -string Kith "$app_dir/Contents/Info.plist"
 plutil -replace CFBundleDisplayName -string Kith "$app_dir/Contents/Info.plist"
 plutil -replace CFBundleDevelopmentRegion -string en "$app_dir/Contents/Info.plist"
-plutil -replace CFBundleShortVersionString -string 0.1.0 "$app_dir/Contents/Info.plist"
 plutil -replace LSMinimumSystemVersion -string 14.0 "$app_dir/Contents/Info.plist"
 plutil -replace LSUIElement -bool YES "$app_dir/Contents/Info.plist"
 plutil -replace NSHighResolutionCapable -bool YES "$app_dir/Contents/Info.plist"
