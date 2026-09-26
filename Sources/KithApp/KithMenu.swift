@@ -61,7 +61,19 @@ struct KithMenu: View {
                     }
 
                     Divider()
-                    KithPowerDisclosure()
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Power").font(.subheadline.weight(.medium))
+                            Text(model.powerSummary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Manage") { showWorkspace(.power) }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .accessibilityLabel("Open Power controls")
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -70,7 +82,7 @@ struct KithMenu: View {
 
             Divider().padding(.top, 12)
             HStack {
-                Button("View all sessions") { showSessions() }
+                Button("View all sessions") { showWorkspace(.sessions) }
                     .buttonStyle(.plain)
                     .font(.subheadline.weight(.medium))
                 Spacer()
@@ -107,20 +119,21 @@ struct KithMenu: View {
                 KithSessionRow(session: session)
             }
             if sessions.count > limit {
-                Button("View \(sessions.count - limit) more") { showSessions() }
+                Button("View \(sessions.count - limit) more") { showWorkspace(.sessions) }
                     .font(.caption)
                     .padding(.leading, 8)
             }
         }
     }
 
-    private func showSessions() {
-        openWindow(id: "sessions")
+    private func showWorkspace(_ page: WorkspacePage) {
+        model.workspacePage = page
+        openWindow(id: "workspace")
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }
 
-private struct KithArmedBanner: View {
+struct KithArmedBanner: View {
     @EnvironmentObject private var model: KithModel
 
     var body: some View {
@@ -159,92 +172,5 @@ private struct KithArmedBanner: View {
         case .watchingWork: return "\(verb) when work ends"
         case .countdown(let seconds): return "\(verb) in \(seconds) seconds"
         }
-    }
-}
-
-private struct KithPowerDisclosure: View {
-    @EnvironmentObject private var model: KithModel
-    @Environment(\.openSettings) private var openSettings
-    @State private var expanded = false
-    @State private var confirmingShutdown = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Power").font(.subheadline.weight(.medium))
-                        Text(powerSummary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
-                        .accessibilityHidden(true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Power, \(powerSummary)")
-            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
-
-            if expanded {
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Keep awake while working", isOn: $model.keepAwake)
-                    Toggle("Allow closed-lid work", isOn: $model.closedLid)
-                        .disabled(!model.helperEnabled)
-                    if !model.helperEnabled {
-                        Button("Enable closed-lid helper in Settings") { showSettings(.power) }
-                            .font(.caption)
-                    }
-                    if model.armedAction == nil {
-                        Menu("After work…") {
-                            Button("Sleep when work ends") { model.arm(.sleep) }
-                            Button("Shut down when work ends") { confirmingShutdown = true }
-                        }
-                        .disabled(model.finishActionBlockReason != nil)
-                        if let reason = model.finishActionBlockReason {
-                            Text(reason)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Button("Review requirements") {
-                                showSettings(model.hasMonitoringIssue ? .monitoring : .power)
-                            }
-                            .font(.caption)
-                        }
-                    }
-                }
-                .padding(.top, 10)
-            }
-        }
-        .alert("Shut down when work ends?", isPresented: $confirmingShutdown) {
-            Button("Arm Shutdown", role: .destructive) { model.arm(.shutdown) }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Kith will give you a 60-second countdown after work ends. Shutdown may discard unsaved work in other apps.")
-        }
-    }
-
-    private var powerSummary: String {
-        if model.closedLidReady {
-            return model.externalWakeOwner ? "External closed-lid hold detected" : "Closed-lid hold active"
-        }
-        if model.idleHoldActive {
-            return model.closedLid ? "Keeping awake · preparing lid hold" : "Keeping Mac awake"
-        }
-        if model.keepAwake || model.closedLid { return "Ready when agents work" }
-        return "Awake protection is off"
-    }
-
-    private func showSettings(_ pane: SettingsPane) {
-        model.settingsPane = pane
-        openSettings()
     }
 }

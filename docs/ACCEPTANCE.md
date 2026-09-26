@@ -19,8 +19,9 @@ Check event latency against the hook invocation time: under 5 seconds for hook e
 ## Interface
 
 - With no work, confirm the menu bar panel stays compact and shows an all-clear state only when monitoring is healthy.
-- Start several sessions, request input in more than four, and fail one. The panel must prioritize the action items, cap its preview, and open the matching app or thread from each visible row. The Sessions window must show the rest, with working and recent filters and search by title, project, and source.
-- Disable a monitor and notifications. Their warnings must remain visible in the panel and Sessions window, with links to the relevant Settings panes. An unavailable monitor must never appear as finished work.
+- Start several sessions, request input in more than four, and fail one. The panel must prioritize the action items, cap its preview, and open the matching app or thread from each visible row. The shared Kith window must show the rest in Sessions, with working and recent filters and search by title, project, and source.
+- Open Power from the panel and switch between Sessions and Power in the same window. The window must keep one instance and preserve the selected view when reopened.
+- Disable a monitor and notifications. Their warnings must remain visible in the panel and shared window, with links to the relevant Settings panes. An unavailable monitor must never appear as finished work.
 - Arm sleep and shutdown in turn. The armed state and Cancel must remain visible while scrolling; shutdown must require confirmation, and the 60-second countdown must stay at the top of the panel.
 - Check light, dark, increased contrast, VoiceOver, keyboard navigation, long titles, duplicate titles, and a small display. Status must be clear without color, and the panel must remain within the display.
 
@@ -30,4 +31,4 @@ Before testing, note `pmset -g` → `SleepDisabled` and save all work. Verify th
 
 With **no external display**, test a long-running turn with the lid closed on AC, then on battery. Change power source during a run. Confirm the agent continues and Kith shows the hold active *before* closing the lid. After each test, confirm `SleepDisabled` returns to its prior value. Repeat after killing the app, restarting the helper, and disabling the helper. The 45-second lease should restore the setting after an app crash.
 
-Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Settings after completing these checks.
+Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Power after completing these checks.

@@ -15,10 +15,18 @@ enum FinishActionPhase {
     case countdown(Int)
 }
 
-enum SettingsPane: String {
-    case monitoring
-    case notifications
-    case power
+enum WorkspacePage: String, CaseIterable, Identifiable {
+    case sessions = "Sessions"
+    case power = "Power"
+
+    var id: String { rawValue }
+}
+
+enum SettingsPane: String, CaseIterable, Identifiable {
+    case monitoring = "Monitoring"
+    case notifications = "Notifications"
+
+    var id: String { rawValue }
 }
 
 @MainActor
@@ -35,6 +43,7 @@ final class KithModel: ObservableObject {
     @Published private(set) var message: String?
     @Published private(set) var countdown: Int?
     @Published private(set) var armedAction: FinishAction?
+    @Published var workspacePage: WorkspacePage = .sessions
     @Published var settingsPane: SettingsPane = .monitoring
     @Published var keepAwake: Bool {
         didSet { UserDefaults.standard.set(keepAwake, forKey: "keepAwake") }
@@ -119,6 +128,16 @@ final class KithModel: ObservableObject {
     var attentionCount: Int { needsInputCount + failedCount }
     var monitoringReady: Bool { bootstrapComplete }
     var hasMonitoringIssue: Bool { !hooksInstalled || !unavailable.isEmpty }
+    var powerSummary: String {
+        if closedLidReady {
+            return externalWakeOwner ? "External closed-lid hold detected" : "Closed-lid hold active"
+        }
+        if idleHoldActive {
+            return closedLid ? "Keeping awake · preparing lid hold" : "Keeping Mac awake"
+        }
+        if keepAwake || closedLid { return "Ready when agents work" }
+        return "Awake protection is off"
+    }
 
     var attentionSessions: [AgentSession] {
         sessions.filter { $0.status == .needsInput || $0.status == .failed }

@@ -16,7 +16,46 @@ private struct SessionGroup: Identifiable {
     var id: String { title }
 }
 
-struct KithSessionsWindow: View {
+struct KithWorkspaceWindow: View {
+    @EnvironmentObject private var model: KithModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 20) {
+                KithPageHeader(
+                    title: model.workspacePage.rawValue,
+                    subtitle: model.workspacePage == .sessions ?
+                        "Find the work that needs you, or return to an agent." :
+                        "See how Kith protects your Mac while agents work."
+                )
+                Spacer(minLength: 12)
+                Picker("View", selection: $model.workspacePage) {
+                    ForEach(WorkspacePage.allCases) { page in
+                        Text(page.rawValue).tag(page)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 220)
+            }
+
+            if model.armedAction != nil { KithArmedBanner() }
+            KithHealthView()
+            KithMessageView()
+            Divider()
+
+            if model.workspacePage == .sessions {
+                KithSessionsPage()
+            } else {
+                KithPowerPage()
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 560, minHeight: 400)
+    }
+}
+
+private struct KithSessionsPage: View {
     @EnvironmentObject private var model: KithModel
     @State private var searchText = ""
     @State private var selectedFilter: SessionFilter = .all
@@ -24,17 +63,6 @@ struct KithSessionsWindow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Sessions")
-                    .font(.title2.weight(.semibold))
-                Text("Find the work that needs you, or return to an agent.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            KithHealthView()
-            KithMessageView()
-
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
@@ -75,8 +103,6 @@ struct KithSessionsWindow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(20)
-        .frame(minWidth: 560, minHeight: 400)
         .toolbar {
             ToolbarItem {
                 Button("Search") { searchFocused = true }

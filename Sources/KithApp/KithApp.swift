@@ -30,8 +30,8 @@ struct KithApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("Sessions", id: "sessions") {
-            KithSessionsWindow().environmentObject(model)
+        Window("Kith", id: "workspace") {
+            KithWorkspaceWindow().environmentObject(model)
         }
         .defaultSize(width: 720, height: 560)
 
