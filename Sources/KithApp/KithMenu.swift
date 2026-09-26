@@ -48,7 +48,7 @@ struct KithMenu: View {
                         sessionPreview("Needs attention", sessions: model.attentionSessions, limit: 4)
                     }
                     if !model.workingSessions.isEmpty {
-                        sessionPreview("Working", sessions: model.workingSessions, limit: 2)
+                        sessionPreview("Working (\(model.runningCount))", sessions: model.workingSessions, limit: 2)
                     }
                     if model.attentionSessions.isEmpty && model.workingSessions.isEmpty &&
                         model.monitoringReady && !model.hasMonitoringIssue &&
