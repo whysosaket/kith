@@ -5,7 +5,6 @@ import KithCore
 struct KithMenu: View {
     @EnvironmentObject private var model: KithModel
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -25,7 +24,7 @@ struct KithMenu: View {
                 }
                 Spacer()
                 Button {
-                    openSettings()
+                    showSettings(.monitoring)
                 } label: {
                     Image(systemName: "gearshape")
                 }
@@ -61,19 +60,7 @@ struct KithMenu: View {
                     }
 
                     Divider()
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Power").font(.subheadline.weight(.medium))
-                            Text(model.powerSummary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Manage") { showWorkspace(.power) }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                            .accessibilityLabel("Open Power controls")
-                    }
+                    KithPowerDisclosure()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -82,9 +69,9 @@ struct KithMenu: View {
 
             Divider().padding(.top, 12)
             HStack {
-                Button("View all sessions") { showWorkspace(.sessions) }
-                    .buttonStyle(.plain)
-                    .font(.subheadline.weight(.medium))
+                Button("Show all sessions") { showWorkspace(.sessions) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
                 Spacer()
                 Button("Quit Kith") { NSApplication.shared.terminate(nil) }
                     .buttonStyle(.bordered)
@@ -131,6 +118,11 @@ struct KithMenu: View {
         openWindow(id: "workspace")
         NSApplication.shared.activate(ignoringOtherApps: true)
     }
+
+    private func showSettings(_ pane: SettingsPane) {
+        model.settingsPane = pane
+        showWorkspace(.settings)
+    }
 }
 
 struct KithArmedBanner: View {
@@ -172,5 +164,81 @@ struct KithArmedBanner: View {
         case .watchingWork: return "\(verb) when work ends"
         case .countdown(let seconds): return "\(verb) in \(seconds) seconds"
         }
+    }
+}
+
+private struct KithPowerDisclosure: View {
+    @EnvironmentObject private var model: KithModel
+    @Environment(\.openWindow) private var openWindow
+    @State private var expanded = false
+    @State private var confirmingShutdown = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Power").font(.subheadline.weight(.medium))
+                        Text(model.powerSummary)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                        .accessibilityHidden(true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Power, \(model.powerSummary)")
+            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+
+            if expanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Keep awake while working", isOn: $model.keepAwake)
+                    Toggle("Allow closed-lid work", isOn: $model.closedLid)
+                        .disabled(!model.helperEnabled)
+                    if !model.helperEnabled {
+                        Button("Set up closed-lid work") { showPowerSettings() }
+                            .font(.caption)
+                    }
+                    if model.armedAction == nil {
+                        Menu("After work…") {
+                            Button("Sleep when work ends") { model.arm(.sleep) }
+                            Button("Shut down when work ends") { confirmingShutdown = true }
+                        }
+                        .disabled(model.finishActionBlockReason != nil)
+                        if let reason = model.finishActionBlockReason {
+                            Text(reason)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Button("More power settings") { showPowerSettings() }
+                        .font(.caption)
+                }
+                .padding(.top, 10)
+            }
+        }
+        .alert("Shut down when work ends?", isPresented: $confirmingShutdown) {
+            Button("Arm Shutdown", role: .destructive) { model.arm(.shutdown) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Kith will give you a 60-second countdown after work ends. Shutdown may discard unsaved work in other apps.")
+        }
+    }
+
+    private func showPowerSettings() {
+        model.settingsPane = .power
+        model.workspacePage = .settings
+        openWindow(id: "workspace")
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }

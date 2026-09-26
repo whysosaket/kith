@@ -17,7 +17,7 @@ enum FinishActionPhase {
 
 enum WorkspacePage: String, CaseIterable, Identifiable {
     case sessions = "Sessions"
-    case power = "Power"
+    case settings = "Settings"
 
     var id: String { rawValue }
 }
@@ -25,6 +25,7 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
 enum SettingsPane: String, CaseIterable, Identifiable {
     case monitoring = "Monitoring"
     case notifications = "Notifications"
+    case power = "Power"
 
     var id: String { rawValue }
 }

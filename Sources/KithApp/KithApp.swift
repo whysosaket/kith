@@ -35,9 +35,6 @@ struct KithApp: App {
         }
         .defaultSize(width: 720, height: 560)
 
-        Settings {
-            KithSettings().environmentObject(model)
-        }
     }
 
     private var menuBarLabel: String {

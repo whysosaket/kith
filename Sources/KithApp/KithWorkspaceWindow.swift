@@ -26,7 +26,7 @@ struct KithWorkspaceWindow: View {
                     title: model.workspacePage.rawValue,
                     subtitle: model.workspacePage == .sessions ?
                         "Find the work that needs you, or return to an agent." :
-                        "See how Kith protects your Mac while agents work."
+                        "Manage monitoring, notifications, and Mac power."
                 )
                 Spacer(minLength: 12)
                 Picker("View", selection: $model.workspacePage) {
@@ -47,7 +47,7 @@ struct KithWorkspaceWindow: View {
             if model.workspacePage == .sessions {
                 KithSessionsPage()
             } else {
-                KithPowerPage()
+                KithSettingsPage()
             }
         }
         .padding(20)
@@ -59,7 +59,6 @@ private struct KithSessionsPage: View {
     @EnvironmentObject private var model: KithModel
     @State private var searchText = ""
     @State private var selectedFilter: SessionFilter = .all
-    @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -68,7 +67,6 @@ private struct KithSessionsPage: View {
                     .foregroundStyle(.secondary)
                 TextField("Search title, project, or source", text: $searchText)
                     .textFieldStyle(.plain)
-                    .focused($searchFocused)
                     .accessibilityLabel("Search sessions")
             }
             .padding(9)
@@ -101,12 +99,6 @@ private struct KithSessionsPage: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .toolbar {
-            ToolbarItem {
-                Button("Search") { searchFocused = true }
-                    .keyboardShortcut("f", modifiers: .command)
             }
         }
     }

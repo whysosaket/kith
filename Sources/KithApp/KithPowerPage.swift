@@ -2,7 +2,6 @@ import SwiftUI
 
 struct KithPowerPage: View {
     @EnvironmentObject private var model: KithModel
-    @Environment(\.openSettings) private var openSettings
     @State private var confirmingShutdown = false
 
     var body: some View {
@@ -61,7 +60,6 @@ struct KithPowerPage: View {
                             if model.hasMonitoringIssue {
                                 Button("Review monitoring") {
                                     model.settingsPane = .monitoring
-                                    openSettings()
                                 }
                             }
                         }

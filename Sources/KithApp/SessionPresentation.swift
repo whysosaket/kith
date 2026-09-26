@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import KithCore
 
@@ -131,7 +132,7 @@ struct KithSessionRow: View {
 
 struct KithHealthView: View {
     @EnvironmentObject private var model: KithModel
-    @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         if model.hasMonitoringIssue {
@@ -174,7 +175,9 @@ struct KithHealthView: View {
 
     private func showSettings(_ pane: SettingsPane) {
         model.settingsPane = pane
-        openSettings()
+        model.workspacePage = .settings
+        openWindow(id: "workspace")
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 }
 

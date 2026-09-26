@@ -2,7 +2,7 @@
 
 Kith is a personal macOS menu bar companion for local Claude Code and Codex sessions. It displays session state, sends attention and completion notifications, can hold idle sleep while agents work, and offers a one-shot sleep or shutdown countdown.
 
-The menu bar panel shows sessions needing attention first, then a short preview of working sessions and the current power state. **View all sessions** and **Manage** under Power open the same resizable window, with Sessions and Power views. Settings contains Monitoring and Notifications. Monitoring issues stay visible in the panel and shared window; Kith does not claim work is finished while a monitor is unavailable.
+The menu bar panel shows sessions needing attention first, then a short preview of working sessions and a compact Power disclosure. **Show all sessions** opens a resizable window with Sessions and Settings tabs. Settings contains Monitoring, Notifications, and Power. Monitoring issues stay visible in the panel and shared window; Kith does not claim work is finished while a monitor is unavailable.
 
 ## Build
 

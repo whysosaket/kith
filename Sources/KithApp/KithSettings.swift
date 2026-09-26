@@ -1,42 +1,34 @@
 import SwiftUI
 import KithCore
 
-struct KithSettings: View {
+struct KithSettingsPage: View {
     @EnvironmentObject private var model: KithModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 20) {
-                KithPageHeader(
-                    title: model.settingsPane.rawValue,
-                    subtitle: model.settingsPane == .monitoring ?
-                        "Check how Kith follows your coding sessions." :
-                        "Choose how Kith alerts you when work changes."
-                )
-                Spacer(minLength: 12)
-                Picker("Settings", selection: $model.settingsPane) {
-                    ForEach(SettingsPane.allCases) { pane in
-                        Text(pane.rawValue).tag(pane)
-                    }
+            Picker("Settings section", selection: $model.settingsPane) {
+                ForEach(SettingsPane.allCases) { pane in
+                    Text(pane.rawValue).tag(pane)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 245)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityLabel("Settings section")
 
-            KithMessageView()
             Divider()
 
-            ScrollView {
-                if model.settingsPane == .monitoring {
-                    MonitoringSettings()
-                } else {
-                    NotificationSettings()
+            if model.settingsPane == .power {
+                KithPowerPage()
+            } else {
+                ScrollView {
+                    if model.settingsPane == .monitoring {
+                        MonitoringSettings()
+                    } else {
+                        NotificationSettings()
+                    }
                 }
             }
         }
-        .padding(20)
-        .frame(width: 620, height: 520)
     }
 }
 
