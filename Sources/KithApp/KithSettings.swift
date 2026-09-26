@@ -8,11 +8,11 @@ struct KithSettingsPage: View {
         if #available(macOS 26.0, *) {
             content
                 .padding(16)
-                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 16))
         } else {
             content
                 .padding(16)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
         }
     }
 
