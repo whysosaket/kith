@@ -75,8 +75,8 @@ struct KithMenu: View {
                     .font(.subheadline.weight(.medium))
                 Spacer()
                 Button("Quit Kith") { NSApplication.shared.terminate(nil) }
-                    .buttonStyle(.plain)
-                    .font(.subheadline)
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
             }
             .padding(.top, 12)
         }
