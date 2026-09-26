@@ -139,13 +139,14 @@ final class PowerClient {
             connection.resume()
             self.connection = connection
         }
-        guard let proxy = connection?.remoteObjectProxyWithErrorHandler({ error in
+        // XPC runs these on its own queue, so they must not inherit main-actor isolation.
+        guard let proxy = connection?.remoteObjectProxyWithErrorHandler({ @Sendable error in
             Task { @MainActor in gate.finish(false, error.localizedDescription) }
         }) as? PowerServiceProtocol else {
             gate.finish(false, "Power helper unavailable")
             return
         }
-        invoke(proxy) { success, message in
+        invoke(proxy) { @Sendable success, message in
             Task { @MainActor in gate.finish(success, message) }
         }
     }
