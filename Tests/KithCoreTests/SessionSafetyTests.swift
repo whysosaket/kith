@@ -32,6 +32,16 @@ struct SessionSafetyTests {
         #expect(store.sessions["claude:test"]?.status == .running)
     }
 
+    @Test func waitingScanBlocksFinishUntilBusyAgain() {
+        var store = SessionStore()
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .needsInput, attentionID: "question:waiting"))
+        #expect(!store.allSafeToFinish)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .running))
+        #expect(store.sessions["claude:test"]?.status == .running)
+    }
+
     @Test func stopHookAloneDoesNotMarkReady() {
         var store = SessionStore()
         _ = store.apply(AgentEvent(source: .codex, sessionID: "test", kind: .turnStarted),

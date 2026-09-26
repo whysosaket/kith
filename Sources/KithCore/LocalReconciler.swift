@@ -57,9 +57,15 @@ public enum LocalReconciler {
             let processAlive = pid > 0 && (kill(Int32(pid), 0) == 0 || errno == EPERM)
             guard processAlive || now.timeIntervalSince(date) < 3600 else { continue }
             let state: SessionStatus
-            if status == "busy" && !processAlive {
+            var attentionID: String?
+            if (status == "busy" || status == "waiting") && !processAlive {
                 state = claudeTranscriptState(sessionID: id).status == .ready ? .ready : .unavailable
             } else if status == "busy" { state = .running }
+            else if status == "waiting" {
+                // Claude is blocked on the user; the question: prefix lets a later busy scan clear it.
+                state = .needsInput
+                attentionID = "question:waiting"
+            }
             else if status == "idle" { state = .ready }
             else if status == "shell" {
                 state = claudeTranscriptState(sessionID: id).status == .ready ? .ready : .unavailable
@@ -68,6 +74,7 @@ public enum LocalReconciler {
             result.sessions.append(AgentSession(source: .claude, surface: .claudeCLI,
                 sessionID: id, projectPath: json["cwd"] as? String,
                 title: json["name"] as? String, status: state, lastActivity: date,
+                attentionID: attentionID,
                 terminalBundleID: processAlive ? TerminalLocator.bundleID(startingAt: Int32(pid)) : nil))
         }
     }
