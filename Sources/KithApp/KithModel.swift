@@ -265,7 +265,13 @@ final class KithModel: ObservableObject {
     func open(_ session: AgentSession) {
         switch session.surface {
         case .codexDesktop:
-            NSWorkspace.shared.open(URL(string: "codex://threads/\(session.sessionID)")!)
+            let threadID = session.sessionID.addingPercentEncoding(
+                withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/")))
+            guard let url = threadID.flatMap({ URL(string: "codex://threads/\($0)") }) else {
+                message = "Could not open Codex thread"
+                return
+            }
+            NSWorkspace.shared.open(url)
         case .claudeDesktop:
             activateApplication("com.anthropic.claudefordesktop")
         case .claudeCLI, .codexCLI:

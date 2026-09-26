@@ -92,11 +92,19 @@ public enum HookInstaller {
         if hooks.isEmpty { root.removeValue(forKey: "hooks") }
         else { root["hooks"] = hooks }
 
-        try manager.createDirectory(at: url.deletingLastPathComponent(),
+        // Write through symlinks so dotfile managers keep their link, and keep one pristine backup.
+        let target = url.resolvingSymlinksInPath()
+        try manager.createDirectory(at: target.deletingLastPathComponent(),
                                     withIntermediateDirectories: true)
-        let output = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
-        try output.write(to: url, options: .atomic)
-        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        let backup = target.appendingPathExtension("kith-backup")
+        if data != nil && !manager.fileExists(atPath: backup.path) {
+            try manager.copyItem(at: target, to: backup)
+        }
+        let permissions = (try? manager.attributesOfItem(atPath: target.path))?[.posixPermissions] ?? 0o600
+        let output = try JSONSerialization.data(withJSONObject: root,
+                                                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        try output.write(to: target, options: .atomic)
+        try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: target.path)
     }
 
     private static func configURL(for source: AgentSource, home: URL) -> URL {

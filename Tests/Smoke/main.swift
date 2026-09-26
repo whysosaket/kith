@@ -27,6 +27,9 @@ check(store.sessions["codex:\(id)"]?.status == .running, "matching approval clea
 _ = store.reconcile(AgentSession(source: .codex, surface: .codexCLI,
                                  sessionID: id, turnID: "turn-1", status: .ready))
 check(store.allSafeToFinish, "confirmed completion is safe")
+_ = store.apply(AgentEvent(source: .codex, sessionID: id, kind: .sessionEnded,
+                           timestamp: Date().addingTimeInterval(86_400)), surface: .codexCLI)
+check(store.sessions["codex:\(id)"]!.lastActivity <= Date(), "future event timestamps are capped")
 
 var unknown = SessionStore()
 _ = unknown.reconcile(AgentSession(source: .claude, surface: .claudeDesktop,
@@ -63,15 +66,27 @@ check(!String(decoding: data, as: UTF8.self).contains("secret"), "tool input was
 let fakeHome = FileManager.default.temporaryDirectory.appendingPathComponent("kith-test-\(UUID().uuidString)")
 defer { try? FileManager.default.removeItem(at: fakeHome) }
 let existing: [String: Any] = ["hooks": ["Stop": [["hooks": [["type": "command", "command": "echo other"]]]]]]
-for path in [".claude/settings.json", ".codex/hooks.json"] {
-    let url = fakeHome.appendingPathComponent(path)
-    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
-                                             withIntermediateDirectories: true)
-    try JSONSerialization.data(withJSONObject: existing).write(to: url)
+let files = FileManager.default
+let claudeLink = fakeHome.appendingPathComponent(".claude/settings.json")
+let claudeTarget = fakeHome.appendingPathComponent("dotfiles/claude-settings.json")
+let codexFile = fakeHome.appendingPathComponent(".codex/hooks.json")
+for url in [claudeLink, claudeTarget, codexFile] {
+    try files.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
 }
+for url in [claudeTarget, codexFile] { try JSONSerialization.data(withJSONObject: existing).write(to: url) }
+try files.createSymbolicLink(at: claudeLink, withDestinationURL: claudeTarget)
+try files.setAttributes([.posixPermissions: 0o644], ofItemAtPath: codexFile.path)
 let eventExecutable = URL(fileURLWithPath: "/Applications/Kith.app/Contents/MacOS/kith-event")
 try HookInstaller.install(executable: eventExecutable, home: fakeHome)
 check(HookInstaller.isInstalled(executable: eventExecutable, home: fakeHome), "both hook sets installed")
+check((try? files.destinationOfSymbolicLink(atPath: claudeLink.path)) == claudeTarget.path,
+      "install keeps a symlinked settings file linked")
+check(files.fileExists(atPath: claudeTarget.path + ".kith-backup") &&
+      files.fileExists(atPath: codexFile.path + ".kith-backup"), "install backs up the original files")
+let codexText = try String(contentsOf: codexFile, encoding: .utf8)
+check(!codexText.contains("\\/"), "install keeps slashes unescaped")
+let codexPermissions = try files.attributesOfItem(atPath: codexFile.path)[.posixPermissions] as? Int
+check(codexPermissions == 0o644, "install keeps existing permissions")
 try HookInstaller.uninstall(executable: eventExecutable, home: fakeHome)
 for path in [".claude/settings.json", ".codex/hooks.json"] {
     let file = fakeHome.appendingPathComponent(path)

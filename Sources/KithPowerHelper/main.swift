@@ -16,7 +16,7 @@ private struct XPCReply: @unchecked Sendable {
 
 private final class PowerController: NSObject, PowerServiceProtocol, @unchecked Sendable {
     private let stateURL = URL(fileURLWithPath: "/var/db/kith-power-state.json")
-    private let queue = DispatchQueue(label: "dev.kith.power.state")
+    private let queue = DispatchQueue(label: "\(PowerService.name).state")
     private var lease: SavedLease?
 
     override init() {
@@ -179,51 +179,35 @@ private final class PowerController: NSObject, PowerServiceProtocol, @unchecked 
 private final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
     let controller = PowerController()
 
+    /// Only the Kith app signed by the helper's own team may call it. XPC checks this against the
+    /// caller's audit token, so a reused PID cannot pass. Builds without a team ID get no clients.
+    private let clientRequirement: String? = {
+        var code: SecCode?
+        guard SecCodeCopySelf(SecCSFlags(), &code) == errSecSuccess, let code,
+              let team = signingInfo(code: code)?[kSecCodeInfoTeamIdentifier as String] as? String,
+              !team.isEmpty else { return nil }
+        return "identifier \"\(PowerService.clientIdentifier)\" and anchor apple generic " +
+            "and certificate leaf[subject.OU] = \"\(team)\""
+    }()
+
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
-        guard connection.effectiveUserIdentifier != 0,
-              let path = processPath(connection.processIdentifier),
-              (path.hasSuffix("/Kith.app/Contents/MacOS/KithApp") ||
-               path.hasSuffix("/Kith.app/Contents/MacOS/Kith")),
-              isSignedKithApp(pid: connection.processIdentifier) else {
-            return false
-        }
+        guard connection.effectiveUserIdentifier != 0, let clientRequirement else { return false }
+        connection.setCodeSigningRequirement(clientRequirement)
         connection.exportedInterface = NSXPCInterface(with: PowerServiceProtocol.self)
         connection.exportedObject = controller
         connection.resume()
         return true
     }
+}
 
-    private func processPath(_ pid: pid_t) -> String? {
-        var buffer = [CChar](repeating: 0, count: 4096)
-        guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return nil }
-        return String(decoding: buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
-    }
-
-    private func isSignedKithApp(pid: pid_t) -> Bool {
-        var code: SecCode?
-        let attributes = [kSecGuestAttributePid: pid] as CFDictionary
-        guard SecCodeCopyGuestWithAttributes(nil, attributes, SecCSFlags(), &code) == errSecSuccess,
-              let code, SecCodeCheckValidity(code, SecCSFlags(), nil) == errSecSuccess,
-              let client = signingInfo(code: code),
-              let clientTeam = client[kSecCodeInfoTeamIdentifier as String] as? String,
-              !clientTeam.isEmpty else { return false }
-        var ownCode: SecCode?
-        guard SecCodeCopySelf(SecCSFlags(), &ownCode) == errSecSuccess,
-              let ownCode, let own = signingInfo(code: ownCode),
-              let ownTeam = own[kSecCodeInfoTeamIdentifier as String] as? String else { return false }
-        return client[kSecCodeInfoIdentifier as String] as? String == "dev.kith.app" &&
-            clientTeam == ownTeam
-    }
-
-    private func signingInfo(code: SecCode) -> [String: Any]? {
-        var staticCode: SecStaticCode?
-        guard SecCodeCopyStaticCode(code, SecCSFlags(), &staticCode) == errSecSuccess,
-              let staticCode else { return nil }
-        var info: CFDictionary?
-        guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation),
-                                            &info) == errSecSuccess else { return nil }
-        return info as? [String: Any]
-    }
+private func signingInfo(code: SecCode) -> [String: Any]? {
+    var staticCode: SecStaticCode?
+    guard SecCodeCopyStaticCode(code, SecCSFlags(), &staticCode) == errSecSuccess,
+          let staticCode else { return nil }
+    var info: CFDictionary?
+    guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation),
+                                        &info) == errSecSuccess else { return nil }
+    return info as? [String: Any]
 }
 
 private let delegate = ListenerDelegate()

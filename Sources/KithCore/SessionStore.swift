@@ -55,10 +55,12 @@ public struct SessionStore: Sendable {
         let key = "\(event.source.rawValue):\(event.sessionID)"
         var session = sessions[key] ?? AgentSession(source: event.source, surface: surface,
                                                     sessionID: event.sessionID)
-        guard event.timestamp >= session.lastActivity.addingTimeInterval(-5) else { return nil }
+        // Senders set their own timestamp; a future one must not outrank later local scans.
+        let timestamp = min(event.timestamp, Date())
+        guard timestamp >= session.lastActivity.addingTimeInterval(-5) else { return nil }
         let oldStatus = session.status
         session.surface = surface
-        session.lastActivity = event.timestamp
+        session.lastActivity = timestamp
         session.projectPath = event.projectPath ?? session.projectPath
         session.terminalBundleID = event.terminalBundleID ?? session.terminalBundleID
         session.turnID = event.turnID ?? session.turnID
