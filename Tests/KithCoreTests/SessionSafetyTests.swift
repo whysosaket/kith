@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import KithCore
 
@@ -18,6 +19,17 @@ struct SessionSafetyTests {
         _ = store.reconcile(AgentSession(source: .codex, surface: .codexCLI,
                                          sessionID: "test", status: status))
         #expect(!store.allSafeToFinish)
+    }
+
+    @Test func scanConfirmsRestoredSessionDespiteNewerHook() {
+        var store = SessionStore()
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .unavailable, lastActivity: .distantPast))
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .sessionStarted),
+                        surface: .claudeCLI)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .running, lastActivity: Date().addingTimeInterval(-60)))
+        #expect(store.sessions["claude:test"]?.status == .running)
     }
 
     @Test func stopHookAloneDoesNotMarkReady() {

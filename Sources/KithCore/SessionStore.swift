@@ -100,8 +100,11 @@ public struct SessionStore: Sendable {
 
     public mutating func reconcile(_ observed: AgentSession) -> SessionStatus? {
         let old = sessions[observed.id]
+        // A confirmed scan replaces an unconfirmed session even when hook events are newer:
+        // most hooks refresh lastActivity without restoring the status lost on restart.
         guard old == nil || (old!.turnID != nil && old!.turnID == observed.turnID) ||
-              observed.lastActivity >= old!.lastActivity else { return nil }
+              observed.lastActivity >= old!.lastActivity ||
+              (old!.status == .unavailable && observed.status != .unavailable) else { return nil }
         var result = observed
         if let old {
             result.projectPath = result.projectPath ?? old.projectPath
