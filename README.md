@@ -14,7 +14,7 @@ Kith never reports work as finished while it can't confirm a session's state. Mo
 ## Requirements
 
 - macOS 14 or later
-- Swift 6 toolchain: Xcode 16+ or the matching Command Line Tools
+- To build: Xcode 26 or Command Line Tools 26 (the macOS 26 SDK). The built app runs on macOS 14 and later.
 - Claude Code and/or Codex installed locally
 
 Kith builds for your Mac's architecture. It is developed and tested on Apple Silicon.

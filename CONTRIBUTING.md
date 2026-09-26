@@ -4,7 +4,7 @@ Thanks for helping. Bug reports, compatibility fixes for new Claude Code or Code
 
 ## Setup
 
-You need macOS 14+ and a Swift 6 toolchain. Command Line Tools are enough; Xcode is optional.
+You need the macOS 26 SDK from Xcode 26 or Command Line Tools 26. Command Line Tools are enough; Xcode is optional. The app itself supports macOS 14 and later.
 
 ```sh
 scripts/create-signing-identity.sh   # once, so permissions survive rebuilds
