@@ -74,15 +74,9 @@ struct KithMenu: View {
                     .buttonStyle(.plain)
                     .font(.subheadline.weight(.medium))
                 Spacer()
-                Menu {
-                    Button("Quit Kith") { NSApplication.shared.terminate(nil) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .frame(width: 22, height: 22)
-                }
-                .menuStyle(.borderlessButton)
-                .help("More options")
-                .accessibilityLabel("More options")
+                Button("Quit Kith") { NSApplication.shared.terminate(nil) }
+                    .buttonStyle(.plain)
+                    .font(.subheadline)
             }
             .padding(.top, 12)
         }
@@ -204,16 +198,11 @@ private struct KithPowerDisclosure: View {
             }
             .padding(.top, 10)
         } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "power")
-                    .frame(width: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Power").font(.subheadline.weight(.medium))
+                Text(powerSummary)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Power").font(.subheadline.weight(.medium))
-                    Text(powerSummary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
         .alert("Shut down when work ends?", isPresented: $confirmingShutdown) {
