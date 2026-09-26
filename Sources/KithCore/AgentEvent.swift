@@ -51,13 +51,15 @@ public struct AgentEvent: Codable, Sendable, Identifiable {
     public let attentionID: String?
     public let hasBackgroundWork: Bool
     public let terminalBundleID: String?
+    /// Short, content-free reason shown in notifications, such as "Approve Bash".
+    public let detail: String?
 
     public init(
         id: UUID = UUID(), source: AgentSource, sessionID: String,
         turnID: String? = nil, kind: AgentEventKind,
         timestamp: Date = Date(), projectPath: String? = nil,
         attentionID: String? = nil, hasBackgroundWork: Bool = false,
-        terminalBundleID: String? = nil
+        terminalBundleID: String? = nil, detail: String? = nil
     ) {
         self.schemaVersion = 1
         self.id = id
@@ -70,6 +72,7 @@ public struct AgentEvent: Codable, Sendable, Identifiable {
         self.attentionID = attentionID
         self.hasBackgroundWork = hasBackgroundWork
         self.terminalBundleID = terminalBundleID
+        self.detail = detail
     }
 }
 

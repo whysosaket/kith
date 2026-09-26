@@ -1,5 +1,24 @@
 import Foundation
+import KithCore
 import UserNotifications
+
+enum KithNotification {
+    static let openAction = "kith.open"
+
+    static func category(for surface: AgentSurface) -> String { "kith.session.\(surface.rawValue)" }
+
+    /// One category per surface so the button names where it opens, like "Open terminal".
+    static var categories: Set<UNNotificationCategory> {
+        Set(AgentSurface.allCases.map { surface in
+            UNNotificationCategory(
+                identifier: category(for: surface),
+                actions: [UNNotificationAction(identifier: openAction,
+                                               title: surface.openActionTitle,
+                                               options: .foreground)],
+                intentIdentifiers: [])
+        })
+    }
+}
 
 final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
     private let openSession: @Sendable (String) -> Void
@@ -11,7 +30,9 @@ final class NotificationRouter: NSObject, UNUserNotificationCenterDelegate, @unc
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                                 didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
-        if let key = response.notification.request.content.userInfo["sessionKey"] as? String {
+        let opens = [UNNotificationDefaultActionIdentifier, KithNotification.openAction]
+            .contains(response.actionIdentifier)
+        if opens, let key = response.notification.request.content.userInfo["sessionKey"] as? String {
             openSession(key)
         }
         completionHandler()

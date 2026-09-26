@@ -107,6 +107,7 @@ final class KithModel: ObservableObject {
             }
         }
         notifier.delegate = notificationRouter
+        notifier.setNotificationCategories(KithNotification.categories)
         notifier.requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] _, _ in
             Task { @MainActor in self?.refreshNotificationStatus() }
         }
@@ -347,21 +348,17 @@ final class KithModel: ObservableObject {
         unavailable = result.unavailable
         if !hooksInstalled { unavailable.formUnion(AgentSurface.allCases) }
         for observed in result.sessions {
-            let status = store.reconcile(observed)
-            if status == .ready && bootstrapComplete { notifyReady(observed) }
-            if status == .needsInput {
-                notify(title: "\(observed.surface.title) needs input",
-                       body: observed.projectPath ?? "Open the session",
-                       sound: attentionSound,
-                       id: "attention-\(observed.sessionID)-\(observed.turnID ?? "")-\(observed.attentionID ?? "prompt")",
-                       sessionKey: observed.id)
-            }
-            if status == .failed {
-                notify(title: "\(observed.surface.title) failed",
-                       body: observed.projectPath ?? "Open the session",
-                       sound: attentionSound,
-                       id: "failed-\(observed.sessionID)-\(observed.turnID ?? "")",
-                       sessionKey: observed.id)
+            guard let status = store.reconcile(observed) else { continue }
+            let session = store.sessions[observed.id] ?? observed
+            switch status {
+            case .ready where bootstrapComplete: notifyReady(session)
+            case .needsInput:
+                notify(session, status: status,
+                       id: "attention-\(observed.sessionID)-\(observed.turnID ?? "")-\(observed.attentionID ?? "prompt")")
+            case .failed:
+                notify(session, status: status, id: "failed-\(observed.sessionID)-\(observed.turnID ?? "")")
+            case .running: clearDeliveredNotifications(for: session.id)
+            default: break
             }
         }
         store.markMissing(seenIDs: Set(result.sessions.map(\.id)),
@@ -387,33 +384,47 @@ final class KithModel: ObservableObject {
     }
 
     private func emitNotification(for event: AgentEvent, status: SessionStatus) {
-        let title = event.source == .claude ? "Claude Code" : "Codex"
-        let key = "\(event.source.rawValue):\(event.sessionID)"
+        guard let session = store.sessions["\(event.source.rawValue):\(event.sessionID)"] else { return }
         switch status {
         case .needsInput:
-            notify(title: "\(title) needs input", body: event.projectPath ?? "Open the session",
-                   sound: attentionSound, id: "attention-\(event.sessionID)-\(event.turnID ?? "")-\(event.attentionID ?? "prompt")",
-                   sessionKey: key)
+            notify(session, status: status, detail: event.detail,
+                   id: "attention-\(event.sessionID)-\(event.turnID ?? "")-\(event.attentionID ?? "prompt")")
         case .failed:
-            notify(title: "\(title) failed", body: event.projectPath ?? "Open the session",
-                   sound: attentionSound, id: "failed-\(event.sessionID)-\(event.turnID ?? "")",
-                   sessionKey: key)
-        case .ready:
-            if let session = store.sessions["\(event.source.rawValue):\(event.sessionID)"] {
-                notifyReady(session)
-            }
-        default: break
+            notify(session, status: status, detail: event.detail,
+                   id: "failed-\(event.sessionID)-\(event.turnID ?? "")")
+        case .ready: notifyReady(session)
+        case .running: clearDeliveredNotifications(for: session.id)
+        case .unavailable: break
         }
     }
 
     private func notifyReady(_ session: AgentSession) {
-        notify(title: "\(session.surface.title) ready", body: session.projectPath ?? "Turn finished",
-            sound: completionSound,
-            id: "ready-\(session.sessionID)-\(session.turnID ?? "")", sessionKey: session.id)
+        notify(session, status: .ready, id: "ready-\(session.sessionID)-\(session.turnID ?? "")")
+    }
+
+    /// Session alerts lead with the state and session name, then say why and where it opens.
+    private func notify(_ session: AgentSession, status: SessionStatus, detail: String? = nil, id: String) {
+        var context = [detail ?? status.notificationDetail, session.surface.title]
+        if session.title != nil, let projectName = session.projectName { context.append(projectName) }
+        notify(title: "\(status.notificationHeadline) · \(session.notificationName)",
+               body: context.joined(separator: " · "),
+               sound: status == .ready ? completionSound : attentionSound,
+               id: id, session: session)
+    }
+
+    /// Keeps one notification per session so resolved prompts don't linger in Notification Center.
+    private func clearDeliveredNotifications(for sessionKey: String, keeping id: String? = nil) {
+        notifier.getDeliveredNotifications { delivered in
+            let stale = delivered.map(\.request)
+                .filter { $0.content.threadIdentifier == sessionKey && $0.identifier != id }
+                .map(\.identifier)
+            if stale.isEmpty { return }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: stale)
+        }
     }
 
     private func notify(title: String, body: String, sound: Bool, id: String,
-                        sessionKey: String? = nil) {
+                        session: AgentSession? = nil) {
         guard notifiedIDs.insert(id).inserted else { return }
         if notifiedIDs.count > 2_000 { notifiedIDs = [id] }
         if (try? KithPaths.prepare()) != nil,
@@ -423,7 +434,12 @@ final class KithModel: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        if let sessionKey { content.userInfo = ["sessionKey": sessionKey] }
+        if let session {
+            clearDeliveredNotifications(for: session.id, keeping: id)
+            content.userInfo = ["sessionKey": session.id]
+            content.threadIdentifier = session.id
+            content.categoryIdentifier = KithNotification.category(for: session.surface)
+        }
         if sound { content.sound = .default }
         notifier.add(UNNotificationRequest(identifier: id, content: content, trigger: nil)) { [weak self] error in
             guard let error else { return }

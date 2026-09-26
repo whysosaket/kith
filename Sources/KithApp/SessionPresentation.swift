@@ -32,6 +32,36 @@ extension SessionStatus {
         case .unavailable: .secondary
         }
     }
+
+    var notificationHeadline: String {
+        switch self {
+        case .needsInput: "Needs input"
+        case .ready: "Finished"
+        case .failed: "Failed"
+        case .running: "Working"
+        case .unavailable: "Status unconfirmed"
+        }
+    }
+
+    var notificationDetail: String {
+        switch self {
+        case .needsInput: "Waiting for you"
+        case .ready: "Ready for your next message"
+        case .failed: "Stopped with an error"
+        case .running: "Working"
+        case .unavailable: "Kith can't confirm this session"
+        }
+    }
+}
+
+extension AgentSurface {
+    var openActionTitle: String {
+        switch self {
+        case .codexDesktop: "Open Codex thread"
+        case .claudeDesktop: "Open Claude"
+        case .claudeCLI, .codexCLI: "Open terminal"
+        }
+    }
 }
 
 extension AgentSession {
@@ -41,12 +71,11 @@ extension AgentSession {
 
     var displayTitle: String { title ?? projectName ?? surface.title }
 
-    var openActionTitle: String {
-        switch surface {
-        case .codexDesktop: "Open Codex thread"
-        case .claudeDesktop: "Open Claude"
-        case .claudeCLI, .codexCLI: "Open terminal"
-        }
+    var openActionTitle: String { surface.openActionTitle }
+
+    /// Keeps long thread titles to one banner line.
+    var notificationName: String {
+        displayTitle.count > 40 ? displayTitle.prefix(39) + "…" : displayTitle
     }
 
     func matches(_ query: String) -> Bool {
@@ -170,6 +199,9 @@ struct KithHealthView: View {
     private var monitoringDetail: String {
         if !model.hooksInstalled { return "Install agent hooks to start confirming session status." }
         let names = model.unavailable.map(\.title).sorted().joined(separator: ", ")
+        if model.unavailable.contains(.codexDesktop) && !model.accessibilityEnabled {
+            return "Kith can't confirm: \(names). Codex Desktop needs Accessibility access. Finish actions remain blocked."
+        }
         return "Kith can't confirm: \(names). Finish actions remain blocked."
     }
 
@@ -199,9 +231,6 @@ struct KithMessageView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss message")
-        if model.unavailable.contains(.codexDesktop) && !model.accessibilityEnabled {
-            return "Kith can't confirm: \(names). Codex Desktop needs Accessibility access. Finish actions remain blocked."
-        }
             }
         }
     }
