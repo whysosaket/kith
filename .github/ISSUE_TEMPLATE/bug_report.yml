@@ -1,0 +1,38 @@
+name: Bug report
+description: Kith shows the wrong state, misses a notification, or misbehaves
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you expected, what Kith did instead, and steps to reproduce.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface?
+      multiple: true
+      options: [Claude Code CLI, Claude Desktop, Codex CLI, Codex Desktop, Power / closed lid, Other]
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "26.1"
+    validations:
+      required: true
+  - type: input
+    id: agents
+    attributes:
+      label: Claude Code / Codex versions
+      placeholder: "claude 2.1.0, codex 0.50.0"
+  - type: input
+    id: kith
+    attributes:
+      label: Kith commit or version
+  - type: markdown
+    attributes:
+      value: Please remove prompts, file paths or anything private from logs and screenshots. Report security issues privately (see SECURITY.md).

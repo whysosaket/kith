@@ -1,6 +1,6 @@
-# Kith V1 acceptance on the target Mac
+# Kith acceptance checks
 
-Keep **Enable after live validation** off until every applicable check passes. Use a signed build with the same Apple-issued identity on the app and privileged helper. Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
+Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Enable after live validation** off until every applicable check passes. Use a signed build with the same Apple-issued identity on the app and privileged helper. Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
 
 ## Session monitoring
 
@@ -30,5 +30,7 @@ Check event latency against the hook invocation time: under 5 seconds for hook e
 Before testing, note `pmset -g` → `SleepDisabled` and save all work. Verify the idle assertion exists only during work plus the selected extra hold. Test a pending question, a new turn during the 60-second countdown, and explicit Cancel.
 
 With **no external display**, test a long-running turn with the lid closed on AC, then on battery. Change power source during a run. Confirm the agent continues and Kith shows the hold active *before* closing the lid. After each test, confirm `SleepDisabled` returns to its prior value. Repeat after killing the app, restarting the helper, and disabling the helper. The 45-second lease should restore the setting after an app crash.
+
+Confirm that a self-signed or ad hoc build cannot use the helper: Power must show it as unavailable. A build signed with the same Apple-issued identity as the helper must connect.
 
 Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Power after completing these checks.

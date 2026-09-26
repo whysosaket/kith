@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: scripts/test.sh
+      - name: Build app
+        run: scripts/build-app.sh
+      - name: Check Xcode project matches project.yml
+        run: |
+          brew install xcodegen
+          xcodegen generate
+          git diff --exit-code Kith.xcodeproj Resources/Kith-Info.plist
