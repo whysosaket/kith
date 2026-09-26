@@ -1,0 +1,893 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00C09C39193065EDEDE47AEB /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A78B66F29F08E245271646 /* main.swift */; };
+		039369A74702CE5CB99E66C5 /* AgentEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B05B8AE7E93C6E6923F9E5 /* AgentEvent.swift */; };
+		0FCC0FD5E240B7D9C54F8D66 /* libKithCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5575DA1374A65D754D194E05 /* libKithCore.a */; };
+		13CE7EAB77FE98E2F6FA51D2 /* CodexAXProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F6BC2AC6E9A38438E87E76 /* CodexAXProbe.swift */; };
+		164221DA5E8FEF3C064587F5 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1C0841B051A0A4CF4F8AA4 /* SessionStore.swift */; };
+		17D36F244D69E71E01C0AA5D /* EventSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBA4C37309E31E610F99A472 /* EventSocket.swift */; };
+		436D4D4509328C13611DAC94 /* KithModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909704EB2EBA40B24EB5ABDE /* KithModel.swift */; };
+		43A12DD198B477F60DE857E4 /* PowerProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */; };
+		4C5ED5B442A85B823726212F /* KithPowerHelper in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 449E91CBD887C292BE06D36E /* KithPowerHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		52403F1036F92297DDE3CA87 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE4D902344ABE6BA9FFA3054 /* main.swift */; };
+		58A6B599D2CC3AEE3313DB27 /* KithPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96343F71A51B453F06773E7 /* KithPaths.swift */; };
+		591E2B34123174AD9A2A2F63 /* PowerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */; };
+		6B13F78D61741EDD1E00AA2A /* libKithCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5575DA1374A65D754D194E05 /* libKithCore.a */; };
+		74F6D9232EAB61FAA1CDBFE6 /* EventSpool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45F0AAAFBD58A494DD3CF070 /* EventSpool.swift */; };
+		81022700304FA774706D30EF /* libKithCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5575DA1374A65D754D194E05 /* libKithCore.a */; };
+		854F2CA62193EA2A682511F9 /* TerminalLocator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7648445EC414B80747B64443 /* TerminalLocator.swift */; };
+		87CBFB80F665E586E721D55F /* NotificationRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28D557EBACBB0E5D60DBBD3 /* NotificationRouter.swift */; };
+		9BEE252EB8B3831D6CE0A901 /* HookInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 041649949206A24365E544E5 /* HookInstaller.swift */; };
+		A3650CF8340A0BC90BBAE6A0 /* SessionSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 968C6A3FEFF1C783994EE1E9 /* SessionSafetyTests.swift */; };
+		C2B5414D8E35D1A1334F92D5 /* KithApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51AE431B582BBBDB0B3C9287 /* KithApp.swift */; };
+		C8A8F7EC28B1ED496A39AE6C /* EventParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEF3DAD8D1E3E0F3433C8D70 /* EventParser.swift */; };
+		CDB94AA7DCAFC2927826A5EA /* LocalReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510BA1ED365DA746BBBE22DF /* LocalReconciler.swift */; };
+		CF24D89ADBB1A6D98D388A37 /* KithEvent in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 6DF83B3697E90CEF779B2887 /* KithEvent */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		DBE0561826E8F2F35C641377 /* libKithCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5575DA1374A65D754D194E05 /* libKithCore.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0053AA56208D3A83D117581C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9551192361D22AAFCE735BA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E09A1163CDCFBEC97C00F18B;
+			remoteInfo = KithEvent;
+		};
+		204A80F21FEEAD202AD88686 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9551192361D22AAFCE735BA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FBF266D51143FD491CAAD363;
+			remoteInfo = KithCore;
+		};
+		25E88803A6E4F78732E43504 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9551192361D22AAFCE735BA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 568843B76C89900979456645;
+			remoteInfo = KithPowerHelper;
+		};
+		3ADFFFC10B1726C575911AC8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9551192361D22AAFCE735BA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FBF266D51143FD491CAAD363;
+			remoteInfo = KithCore;
+		};
+		5D39277790E8CE04106BA42D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9551192361D22AAFCE735BA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FBF266D51143FD491CAAD363;
+			remoteInfo = KithCore;
+		};
+		DBD9855E9D21D41A37953C2C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9551192361D22AAFCE735BA5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FBF266D51143FD491CAAD363;
+			remoteInfo = KithCore;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		BC589053B0A748187DAA0DE0 /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				CF24D89ADBB1A6D98D388A37 /* KithEvent in Embed Dependencies */,
+				4C5ED5B442A85B823726212F /* KithPowerHelper in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		03A78B66F29F08E245271646 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		041649949206A24365E544E5 /* HookInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HookInstaller.swift; sourceTree = "<group>"; };
+		093BCDF0FE2F82258D1A28E0 /* KithCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KithCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerProtocol.swift; sourceTree = "<group>"; };
+		449E91CBD887C292BE06D36E /* KithPowerHelper */ = {isa = PBXFileReference; includeInIndex = 0; path = KithPowerHelper; sourceTree = BUILT_PRODUCTS_DIR; };
+		45F0AAAFBD58A494DD3CF070 /* EventSpool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventSpool.swift; sourceTree = "<group>"; };
+		510BA1ED365DA746BBBE22DF /* LocalReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalReconciler.swift; sourceTree = "<group>"; };
+		51AE431B582BBBDB0B3C9287 /* KithApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithApp.swift; sourceTree = "<group>"; };
+		5575DA1374A65D754D194E05 /* libKithCore.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libKithCore.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		57F6BC2AC6E9A38438E87E76 /* CodexAXProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexAXProbe.swift; sourceTree = "<group>"; };
+		6DF83B3697E90CEF779B2887 /* KithEvent */ = {isa = PBXFileReference; includeInIndex = 0; path = KithEvent; sourceTree = BUILT_PRODUCTS_DIR; };
+		7648445EC414B80747B64443 /* TerminalLocator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalLocator.swift; sourceTree = "<group>"; };
+		909704EB2EBA40B24EB5ABDE /* KithModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithModel.swift; sourceTree = "<group>"; };
+		968C6A3FEFF1C783994EE1E9 /* SessionSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionSafetyTests.swift; sourceTree = "<group>"; };
+		9C1C0841B051A0A4CF4F8AA4 /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		9C762561F13FE5411E4D967B /* KithApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KithApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerClient.swift; sourceTree = "<group>"; };
+		BBA4C37309E31E610F99A472 /* EventSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventSocket.swift; sourceTree = "<group>"; };
+		C28D557EBACBB0E5D60DBBD3 /* NotificationRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRouter.swift; sourceTree = "<group>"; };
+		C7B05B8AE7E93C6E6923F9E5 /* AgentEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentEvent.swift; sourceTree = "<group>"; };
+		C96343F71A51B453F06773E7 /* KithPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithPaths.swift; sourceTree = "<group>"; };
+		DE4D902344ABE6BA9FFA3054 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		DEF3DAD8D1E3E0F3433C8D70 /* EventParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventParser.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		01A57A687A14315D18F8D906 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DBE0561826E8F2F35C641377 /* libKithCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72D5C2DB9641C125B2C3B696 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				81022700304FA774706D30EF /* libKithCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93D07A512B25EA274511CA36 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0FCC0FD5E240B7D9C54F8D66 /* libKithCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C34E07787339627763DF563B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6B13F78D61741EDD1E00AA2A /* libKithCore.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		43228D2593F6AAF96FA88541 /* KithPowerHelper */ = {
+			isa = PBXGroup;
+			children = (
+				03A78B66F29F08E245271646 /* main.swift */,
+			);
+			name = KithPowerHelper;
+			path = Sources/KithPowerHelper;
+			sourceTree = "<group>";
+		};
+		504738E26A2DADB8A6FC0E3A /* KithEvent */ = {
+			isa = PBXGroup;
+			children = (
+				DE4D902344ABE6BA9FFA3054 /* main.swift */,
+			);
+			name = KithEvent;
+			path = Sources/KithEvent;
+			sourceTree = "<group>";
+		};
+		B53CC26908B713C18F8BDABE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9C762561F13FE5411E4D967B /* KithApp.app */,
+				093BCDF0FE2F82258D1A28E0 /* KithCoreTests.xctest */,
+				6DF83B3697E90CEF779B2887 /* KithEvent */,
+				449E91CBD887C292BE06D36E /* KithPowerHelper */,
+				5575DA1374A65D754D194E05 /* libKithCore.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C1BA66230AAF4E8FA087C9D8 /* KithCoreTests */ = {
+			isa = PBXGroup;
+			children = (
+				968C6A3FEFF1C783994EE1E9 /* SessionSafetyTests.swift */,
+			);
+			name = KithCoreTests;
+			path = Tests/KithCoreTests;
+			sourceTree = "<group>";
+		};
+		C95DED6552F603708C492B95 /* KithCore */ = {
+			isa = PBXGroup;
+			children = (
+				C7B05B8AE7E93C6E6923F9E5 /* AgentEvent.swift */,
+				57F6BC2AC6E9A38438E87E76 /* CodexAXProbe.swift */,
+				DEF3DAD8D1E3E0F3433C8D70 /* EventParser.swift */,
+				BBA4C37309E31E610F99A472 /* EventSocket.swift */,
+				45F0AAAFBD58A494DD3CF070 /* EventSpool.swift */,
+				041649949206A24365E544E5 /* HookInstaller.swift */,
+				C96343F71A51B453F06773E7 /* KithPaths.swift */,
+				510BA1ED365DA746BBBE22DF /* LocalReconciler.swift */,
+				31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */,
+				9C1C0841B051A0A4CF4F8AA4 /* SessionStore.swift */,
+				7648445EC414B80747B64443 /* TerminalLocator.swift */,
+			);
+			name = KithCore;
+			path = Sources/KithCore;
+			sourceTree = "<group>";
+		};
+		EF374F525D5750C0852DEC62 /* KithApp */ = {
+			isa = PBXGroup;
+			children = (
+				51AE431B582BBBDB0B3C9287 /* KithApp.swift */,
+				909704EB2EBA40B24EB5ABDE /* KithModel.swift */,
+				C28D557EBACBB0E5D60DBBD3 /* NotificationRouter.swift */,
+				B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */,
+			);
+			name = KithApp;
+			path = Sources/KithApp;
+			sourceTree = "<group>";
+		};
+		F35B7C939F8B4E95D11CD4D9 = {
+			isa = PBXGroup;
+			children = (
+				EF374F525D5750C0852DEC62 /* KithApp */,
+				C95DED6552F603708C492B95 /* KithCore */,
+				C1BA66230AAF4E8FA087C9D8 /* KithCoreTests */,
+				504738E26A2DADB8A6FC0E3A /* KithEvent */,
+				43228D2593F6AAF96FA88541 /* KithPowerHelper */,
+				B53CC26908B713C18F8BDABE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		568843B76C89900979456645 /* KithPowerHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4CAE69444C4DD60D3C81365A /* Build configuration list for PBXNativeTarget "KithPowerHelper" */;
+			buildPhases = (
+				BF32C34D51477E86300E807F /* Sources */,
+				C34E07787339627763DF563B /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FEA35B1780805446BC492E93 /* PBXTargetDependency */,
+			);
+			name = KithPowerHelper;
+			packageProductDependencies = (
+			);
+			productName = KithPowerHelper;
+			productReference = 449E91CBD887C292BE06D36E /* KithPowerHelper */;
+			productType = "com.apple.product-type.tool";
+		};
+		5754601C9787A40EE381E8E8 /* KithCoreTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 952E07942BAC90C997735A8D /* Build configuration list for PBXNativeTarget "KithCoreTests" */;
+			buildPhases = (
+				DF2289F70857C845D5C9A454 /* Sources */,
+				72D5C2DB9641C125B2C3B696 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B63AD7D68D5B91DA8DEDA179 /* PBXTargetDependency */,
+			);
+			name = KithCoreTests;
+			packageProductDependencies = (
+			);
+			productName = KithCoreTests;
+			productReference = 093BCDF0FE2F82258D1A28E0 /* KithCoreTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		682DA9287235B5B025B2F8DB /* KithApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7C8ECE20E4FDF39FB1B96864 /* Build configuration list for PBXNativeTarget "KithApp" */;
+			buildPhases = (
+				59F97951153B40E5C69BFCD0 /* Sources */,
+				01A57A687A14315D18F8D906 /* Frameworks */,
+				BC589053B0A748187DAA0DE0 /* Embed Dependencies */,
+				1053E39AE4144FEBB9F3EF59 /* Embed privileged daemon plist */,
+				922C439C36EFE46EDC7206DA /* Embed app and menu bar icons */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A9A8B484E35A3434B160C1D5 /* PBXTargetDependency */,
+				3333750E1C58C50FFBBDF23E /* PBXTargetDependency */,
+				72EFD31C767AA3BB5B093F8D /* PBXTargetDependency */,
+			);
+			name = KithApp;
+			packageProductDependencies = (
+			);
+			productName = KithApp;
+			productReference = 9C762561F13FE5411E4D967B /* KithApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E09A1163CDCFBEC97C00F18B /* KithEvent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 615AA415CECBAD25A160DA50 /* Build configuration list for PBXNativeTarget "KithEvent" */;
+			buildPhases = (
+				27851A041BA2EF4A956BDB1D /* Sources */,
+				93D07A512B25EA274511CA36 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				585706C2ABECABEFDF163C3C /* PBXTargetDependency */,
+			);
+			name = KithEvent;
+			packageProductDependencies = (
+			);
+			productName = KithEvent;
+			productReference = 6DF83B3697E90CEF779B2887 /* KithEvent */;
+			productType = "com.apple.product-type.tool";
+		};
+		FBF266D51143FD491CAAD363 /* KithCore */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 49C9377BCA132EF97A2917E4 /* Build configuration list for PBXNativeTarget "KithCore" */;
+			buildPhases = (
+				60738BEDC80337F5C7693E30 /* Sources */,
+				C436CAC75515BFD662EC0FF5 /* Copy Swift Objective-C Interface Header */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = KithCore;
+			packageProductDependencies = (
+			);
+			productName = KithCore;
+			productReference = 5575DA1374A65D754D194E05 /* libKithCore.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		9551192361D22AAFCE735BA5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					682DA9287235B5B025B2F8DB = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 589A638D2F7F0D1B69963CE5 /* Build configuration list for PBXProject "Kith" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = F35B7C939F8B4E95D11CD4D9;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B53CC26908B713C18F8BDABE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FBF266D51143FD491CAAD363 /* KithCore */,
+				E09A1163CDCFBEC97C00F18B /* KithEvent */,
+				568843B76C89900979456645 /* KithPowerHelper */,
+				682DA9287235B5B025B2F8DB /* KithApp */,
+				5754601C9787A40EE381E8E8 /* KithCoreTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		1053E39AE4144FEBB9F3EF59 /* Embed privileged daemon plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed privileged daemon plist";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons\"\ncp \"${SRCROOT}/Resources/dev.kith.power.plist\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons/dev.kith.power.plist\"\n";
+		};
+		922C439C36EFE46EDC7206DA /* Embed app and menu bar icons */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed app and menu bar icons";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Resources\"\ncp \"${SRCROOT}/Resources/Kith.icns\" \"${SRCROOT}/Resources/KithMenuBarTemplate.png\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Resources/\"\n";
+		};
+		C436CAC75515BFD662EC0FF5 /* Copy Swift Objective-C Interface Header */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(DERIVED_SOURCES_DIR)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
+			);
+			name = "Copy Swift Objective-C Interface Header";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/include/$(PRODUCT_MODULE_NAME)/$(SWIFT_OBJC_INTERFACE_HEADER_NAME)",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "ditto \"${SCRIPT_INPUT_FILE_0}\" \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		27851A041BA2EF4A956BDB1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52403F1036F92297DDE3CA87 /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		59F97951153B40E5C69BFCD0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C2B5414D8E35D1A1334F92D5 /* KithApp.swift in Sources */,
+				436D4D4509328C13611DAC94 /* KithModel.swift in Sources */,
+				87CBFB80F665E586E721D55F /* NotificationRouter.swift in Sources */,
+				591E2B34123174AD9A2A2F63 /* PowerClient.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		60738BEDC80337F5C7693E30 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				039369A74702CE5CB99E66C5 /* AgentEvent.swift in Sources */,
+				13CE7EAB77FE98E2F6FA51D2 /* CodexAXProbe.swift in Sources */,
+				C8A8F7EC28B1ED496A39AE6C /* EventParser.swift in Sources */,
+				17D36F244D69E71E01C0AA5D /* EventSocket.swift in Sources */,
+				74F6D9232EAB61FAA1CDBFE6 /* EventSpool.swift in Sources */,
+				9BEE252EB8B3831D6CE0A901 /* HookInstaller.swift in Sources */,
+				58A6B599D2CC3AEE3313DB27 /* KithPaths.swift in Sources */,
+				CDB94AA7DCAFC2927826A5EA /* LocalReconciler.swift in Sources */,
+				43A12DD198B477F60DE857E4 /* PowerProtocol.swift in Sources */,
+				164221DA5E8FEF3C064587F5 /* SessionStore.swift in Sources */,
+				854F2CA62193EA2A682511F9 /* TerminalLocator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BF32C34D51477E86300E807F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00C09C39193065EDEDE47AEB /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DF2289F70857C845D5C9A454 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A3650CF8340A0BC90BBAE6A0 /* SessionSafetyTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3333750E1C58C50FFBBDF23E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E09A1163CDCFBEC97C00F18B /* KithEvent */;
+			targetProxy = 0053AA56208D3A83D117581C /* PBXContainerItemProxy */;
+		};
+		585706C2ABECABEFDF163C3C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FBF266D51143FD491CAAD363 /* KithCore */;
+			targetProxy = DBD9855E9D21D41A37953C2C /* PBXContainerItemProxy */;
+		};
+		72EFD31C767AA3BB5B093F8D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 568843B76C89900979456645 /* KithPowerHelper */;
+			targetProxy = 25E88803A6E4F78732E43504 /* PBXContainerItemProxy */;
+		};
+		A9A8B484E35A3434B160C1D5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FBF266D51143FD491CAAD363 /* KithCore */;
+			targetProxy = 5D39277790E8CE04106BA42D /* PBXContainerItemProxy */;
+		};
+		B63AD7D68D5B91DA8DEDA179 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FBF266D51143FD491CAAD363 /* KithCore */;
+			targetProxy = 3ADFFFC10B1726C575911AC8 /* PBXContainerItemProxy */;
+		};
+		FEA35B1780805446BC492E93 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FBF266D51143FD491CAAD363 /* KithCore */;
+			targetProxy = 204A80F21FEEAD202AD88686 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		06622CCE9046789A61992835 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.coretests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		32A91FC1DA711B6FBB19C7A5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_LDFLAGS = "$(inherited) -lsqlite3";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		4A46452B3BBD5BF9BD8DA6AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Resources/Kith-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.app;
+				PRODUCT_NAME = Kith;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		508331817C7E959B4EA8D875 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.event;
+				PRODUCT_NAME = "kith-event";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		9F9A40309644D5EC98180058 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.power;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		B73229AA70F9D27591E2BA99 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.power;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		C2961C5825FDEB08CD9E4DB1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DEFINES_MODULE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.core;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		DAA80009F1182AB36EC45924 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.coretests;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DF1D85CD211F6FB55B425822 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Resources/Kith-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.app;
+				PRODUCT_NAME = Kith;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		EA3F751E46FF1CF0F4CFA593 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				OTHER_LDFLAGS = "$(inherited) -lsqlite3";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		EABF4F97CCF8A8B1E6B68495 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				DEFINES_MODULE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.core;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		ECEA607B3CB4644E12A5509C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-ObjC",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.event;
+				PRODUCT_NAME = "kith-event";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		49C9377BCA132EF97A2917E4 /* Build configuration list for PBXNativeTarget "KithCore" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2961C5825FDEB08CD9E4DB1 /* Debug */,
+				EABF4F97CCF8A8B1E6B68495 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		4CAE69444C4DD60D3C81365A /* Build configuration list for PBXNativeTarget "KithPowerHelper" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9F9A40309644D5EC98180058 /* Debug */,
+				B73229AA70F9D27591E2BA99 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		589A638D2F7F0D1B69963CE5 /* Build configuration list for PBXProject "Kith" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				32A91FC1DA711B6FBB19C7A5 /* Debug */,
+				EA3F751E46FF1CF0F4CFA593 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		615AA415CECBAD25A160DA50 /* Build configuration list for PBXNativeTarget "KithEvent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				508331817C7E959B4EA8D875 /* Debug */,
+				ECEA607B3CB4644E12A5509C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7C8ECE20E4FDF39FB1B96864 /* Build configuration list for PBXNativeTarget "KithApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DF1D85CD211F6FB55B425822 /* Debug */,
+				4A46452B3BBD5BF9BD8DA6AE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		952E07942BAC90C997735A8D /* Build configuration list for PBXNativeTarget "KithCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06622CCE9046789A61992835 /* Debug */,
+				DAA80009F1182AB36EC45924 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 9551192361D22AAFCE735BA5 /* Project object */;
+}

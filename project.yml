@@ -1,0 +1,91 @@
+name: Kith
+options:
+  bundleIdPrefix: dev.kith
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    OTHER_LDFLAGS: "$(inherited) -lsqlite3"
+    ENABLE_APP_SANDBOX: NO
+targets:
+  KithCore:
+    type: library.static
+    platform: macOS
+    sources: [Sources/KithCore]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.core
+        DEFINES_MODULE: YES
+  KithEvent:
+    type: tool
+    platform: macOS
+    sources: [Sources/KithEvent]
+    dependencies:
+      - target: KithCore
+    settings:
+      base:
+        PRODUCT_NAME: kith-event
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.event
+  KithPowerHelper:
+    type: tool
+    platform: macOS
+    sources: [Sources/KithPowerHelper]
+    dependencies:
+      - target: KithCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.power
+  KithApp:
+    type: application
+    platform: macOS
+    sources: [Sources/KithApp]
+    info:
+      path: Resources/Kith-Info.plist
+      properties:
+        CFBundleDisplayName: Kith
+        CFBundleIconFile: Kith.icns
+        CFBundleShortVersionString: 0.1.0
+        LSUIElement: true
+        NSHighResolutionCapable: true
+    dependencies:
+      - target: KithCore
+      - target: KithEvent
+        embed: true
+        link: false
+        codeSign: true
+        copy:
+          destination: executables
+      - target: KithPowerHelper
+        embed: true
+        link: false
+        codeSign: true
+        copy:
+          destination: executables
+    postBuildScripts:
+      - name: Embed privileged daemon plist
+        script: |
+          mkdir -p "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons"
+          cp "${SRCROOT}/Resources/dev.kith.power.plist" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons/dev.kith.power.plist"
+      - name: Embed app and menu bar icons
+        script: |
+          mkdir -p "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Resources"
+          cp "${SRCROOT}/Resources/Kith.icns" "${SRCROOT}/Resources/KithMenuBarTemplate.png" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Resources/"
+    settings:
+      base:
+        PRODUCT_NAME: Kith
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.app
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGNING_ALLOWED: YES
+  KithCoreTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [Tests/KithCoreTests]
+    dependencies:
+      - target: KithCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.coretests
