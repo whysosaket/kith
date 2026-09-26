@@ -1,14 +1,24 @@
 import AppKit
 import Combine
 import Foundation
-import IOKit.ps
 import KithCore
 import UserNotifications
 
-enum FinishAction: String, CaseIterable, Identifiable {
+enum FinishAction: String {
     case sleep
     case shutdown
-    var id: String { rawValue }
+}
+
+enum FinishActionPhase {
+    case waitingForWork
+    case watchingWork
+    case countdown(Int)
+}
+
+enum SettingsPane: String {
+    case monitoring
+    case notifications
+    case power
 }
 
 @MainActor
@@ -18,13 +28,14 @@ final class KithModel: ObservableObject {
     @Published private(set) var hooksInstalled = false
     @Published private(set) var helperEnabled = false
     @Published private(set) var accessibilityEnabled = false
-    @Published private(set) var batteryPercent: Int?
+    @Published private(set) var idleHoldActive = false
     @Published private(set) var closedLidReady = false
     @Published private(set) var externalWakeOwner = false
     @Published private(set) var notificationIssue: String?
     @Published private(set) var message: String?
     @Published private(set) var countdown: Int?
     @Published private(set) var armedAction: FinishAction?
+    @Published var settingsPane: SettingsPane = .monitoring
     @Published var keepAwake: Bool {
         didSet { UserDefaults.standard.set(keepAwake, forKey: "keepAwake") }
     }
@@ -58,7 +69,6 @@ final class KithModel: ObservableObject {
     private var armedID: UUID?
     private var sawWorkWhileArmed = false
     private var countdownEnd: Date?
-    private var lastBatteryCheck = Date.distantPast
     private var lastNotificationCheck = Date.distantPast
     private var finalizing = false
     private var notifiedIDs: Set<String> = []
@@ -105,8 +115,49 @@ final class KithModel: ObservableObject {
 
     var runningCount: Int { sessions.filter { $0.status == .running }.count }
     var needsInputCount: Int { sessions.filter { $0.status == .needsInput }.count }
-    var readyCount: Int { sessions.filter { $0.status == .ready }.count }
     var failedCount: Int { sessions.filter { $0.status == .failed }.count }
+    var attentionCount: Int { needsInputCount + failedCount }
+    var monitoringReady: Bool { bootstrapComplete }
+    var hasMonitoringIssue: Bool { !hooksInstalled || !unavailable.isEmpty }
+
+    var attentionSessions: [AgentSession] {
+        sessions.filter { $0.status == .needsInput || $0.status == .failed }
+            .sorted {
+                if $0.status != $1.status { return $0.status == .needsInput }
+                if $0.lastActivity != $1.lastActivity { return $0.lastActivity > $1.lastActivity }
+                return $0.id < $1.id
+            }
+    }
+
+    var workingSessions: [AgentSession] {
+        sessions.filter { $0.status == .running }
+    }
+
+    var unconfirmedSessions: [AgentSession] {
+        sessions.filter { $0.status == .unavailable }
+    }
+
+    var recentSessions: [AgentSession] {
+        sessions.filter {
+            let age = Date().timeIntervalSince($0.lastActivity)
+            return $0.status == .ready && age >= 0 && age < 3_600
+        }
+    }
+
+    var finishActionBlockReason: String? {
+        if !automationValidated { return "Finish actions are locked until live validation is completed." }
+        if !bootstrapComplete || !hooksInstalled || !unavailable.isEmpty {
+            return "All four session monitors must be healthy before arming."
+        }
+        if !helperEnabled { return "Enable the power helper before arming a finish action." }
+        return nil
+    }
+
+    var finishActionPhase: FinishActionPhase? {
+        guard armedAction != nil else { return nil }
+        if let countdown { return .countdown(countdown) }
+        return sawWorkWhileArmed ? .watchingWork : .waitingForWork
+    }
 
     func installHooks() {
         do {
@@ -159,16 +210,8 @@ final class KithModel: ObservableObject {
     }
 
     func arm(_ action: FinishAction) {
-        guard automationValidated else {
-            message = "Finish actions are locked until live validation is completed in Settings"
-            return
-        }
-        guard bootstrapComplete, hooksInstalled, unavailable.isEmpty else {
-            message = "All four session monitors must be healthy before arming"
-            return
-        }
-        guard helperEnabled else {
-            message = "Enable the power helper before arming a finish action"
+        if let reason = finishActionBlockReason {
+            message = reason
             return
         }
         armedAction = action
@@ -195,6 +238,8 @@ final class KithModel: ObservableObject {
         countdownEnd = nil
         countdown = nil
     }
+
+    func clearMessage() { message = nil }
 
     func open(_ session: AgentSession) {
         switch session.surface {
@@ -236,10 +281,6 @@ final class KithModel: ObservableObject {
         accessibilityEnabled = CodexAXProbe.trusted
         closedLidReady = power.closedLidReady
         externalWakeOwner = power.externalWakeOwner
-        if Date().timeIntervalSince(lastBatteryCheck) >= 30 {
-            lastBatteryCheck = Date()
-            batteryPercent = Self.readBatteryPercent()
-        }
         if Date().timeIntervalSince(lastNotificationCheck) >= 30 {
             lastNotificationCheck = Date()
             refreshNotificationStatus()
@@ -256,18 +297,6 @@ final class KithModel: ObservableObject {
             }
         }
         updatePowerAndAction()
-    }
-
-    private static func readBatteryPercent() -> Int? {
-        let info = IOPSCopyPowerSourcesInfo().takeRetainedValue()
-        let sources = IOPSCopyPowerSourcesList(info).takeRetainedValue() as [CFTypeRef]
-        for source in sources {
-            guard let details = IOPSGetPowerSourceDescription(info, source).takeUnretainedValue() as? [String: Any],
-                  let current = details["Current Capacity"] as? Int,
-                  let maximum = details["Max Capacity"] as? Int, maximum > 0 else { continue }
-            return Int(Double(current) / Double(maximum) * 100)
-        }
-        return nil
     }
 
     private func refreshNotificationStatus() {
@@ -405,6 +434,7 @@ final class KithModel: ObservableObject {
             notify(title: "Kith wake hold failed", body: "Could not keep the Mac awake",
                    sound: true, id: "power-error-idle")
         }
+        idleHoldActive = power.idleHoldActive
         power.holdClosedLid(shouldHold && closedLid) { [weak self] error in
             if let error {
                 self?.message = error

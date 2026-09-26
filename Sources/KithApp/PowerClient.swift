@@ -30,6 +30,7 @@ final class PowerClient {
     var helperEnabled: Bool {
         SMAppService.daemon(plistName: PowerService.plistName).status == .enabled
     }
+    var idleHoldActive: Bool { assertionID != nil }
     var closedLidReady: Bool { leaseActive }
 
     func registerHelper() throws {

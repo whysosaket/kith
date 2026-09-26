@@ -16,6 +16,14 @@ For Claude Desktop, Claude CLI, Codex Desktop, and Codex CLI, verify:
 
 Check event latency against the hook invocation time: under 5 seconds for hook events and under 10 seconds for scan-only changes.
 
+## Interface
+
+- With no work, confirm the menu bar panel stays compact and shows an all-clear state only when monitoring is healthy.
+- Start several sessions, request input in more than four, and fail one. The panel must prioritize the action items, cap its preview, and open the matching app or thread from each visible row. The Sessions window must show the rest, with working and recent filters and search by title, project, and source.
+- Disable a monitor and notifications. Their warnings must remain visible in the panel and Sessions window, with links to the relevant Settings panes. An unavailable monitor must never appear as finished work.
+- Arm sleep and shutdown in turn. The armed state and Cancel must remain visible while scrolling; shutdown must require confirmation, and the 60-second countdown must stay at the top of the panel.
+- Check light, dark, increased contrast, VoiceOver, keyboard navigation, long titles, duplicate titles, and a small display. Status must be clear without color, and the panel must remain within the display.
+
 ## Power and closed lid
 
 Before testing, note `pmset -g` → `SleepDisabled` and save all work. Verify the idle assertion exists only during work plus the selected extra hold. Test a pending question, a new turn during the 60-second countdown, and explicit Cancel.

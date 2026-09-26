@@ -2,7 +2,7 @@
 
 Kith is a personal macOS menu bar companion for local Claude Code and Codex sessions. It displays session state, sends attention and completion notifications, can hold idle sleep while agents work, and offers a one-shot sleep or shutdown countdown.
 
-The menu bar popover has an Overview tab for alerts and power controls, and a Sessions tab that groups running sessions first, then sessions needing input and other recent sessions. Both tabs show unavailable monitors; the Sessions tab does not claim work is finished while a monitor is unavailable.
+The menu bar panel shows sessions needing attention first, then a short preview of working sessions and the current power state. **View all sessions** opens a resizable window with search and status filters. The Settings window groups Monitoring, Notifications, and Power. Monitoring issues stay visible in the panel and Sessions window; Kith does not claim work is finished while a monitor is unavailable.
 
 ## Build
 
@@ -14,7 +14,7 @@ Ad hoc builds change their code identity when rebuilt. macOS may leave Kith's Ac
 
 ## First run
 
-Open Kith, then use Settings → Install hooks. Review and trust the Codex hooks with `/hooks` in Codex. Enable Kith under System Settings → Notifications, including notification sounds. Kith shows a warning when macOS disables its notifications or sounds. It only writes its own hook entries to `~/.claude/settings.json` and `~/.codex/hooks.json`; Remove hooks removes those entries while preserving unrelated settings.
+Open Kith, then use Settings → Monitoring → Install hooks. Review and trust the Codex hooks with `/hooks` in Codex. Enable Kith under System Settings → Notifications, including notification sounds. Kith shows a warning when macOS disables its notifications or sounds. It only writes its own hook entries to `~/.claude/settings.json` and `~/.codex/hooks.json`; Remove hooks removes those entries while preserving unrelated settings.
 
 Kith reads local session metadata. It does not save prompts, transcripts, tool arguments, or credentials. A monitor shown as unavailable blocks automatic power actions. Grant Accessibility for the Codex Desktop fallback. Its prompt detection and closed-lid behavior still need live acceptance tests before relying on automatic power actions.
 
