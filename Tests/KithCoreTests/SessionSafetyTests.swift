@@ -61,4 +61,15 @@ struct SessionSafetyTests {
                                          status: .running))
         #expect(store.sessions["claude:test"]?.terminalTTY == "/dev/ttys003")
     }
+
+    @Test func toolResultEndsScannedWait() {
+        var store = SessionStore()
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .attentionOpened,
+                                   attentionID: "toolu_1"), surface: .claudeCLI)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .needsInput, attentionID: "question:waiting:1"))
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .attentionResolved,
+                                   attentionID: "toolu_1"), surface: .claudeCLI)
+        #expect(store.sessions["claude:test"]?.status == .running)
+    }
 }

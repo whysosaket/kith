@@ -75,8 +75,10 @@ public struct SessionStore: Sendable {
             session.stopCandidate = false
             session.hasBackgroundWork = false
         case .attentionResolved:
+            // A scanned Claude wait replaces the hook's own ID, so any tool result ends it too.
             if let attentionID = session.attentionID,
-               attentionID == event.attentionID || attentionID == "prompt" {
+               attentionID == event.attentionID || attentionID == "prompt" ||
+                attentionID.hasPrefix("question:waiting:") {
                 session.status = .running
                 session.attentionID = nil
             }

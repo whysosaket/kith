@@ -49,6 +49,11 @@ struct LocalReconcilerTests {
         for url in [fresh, stale] { try Data().write(to: url) }
         try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-7200)],
                                               ofItemAtPath: stale.path)
+        // Subagents only hold their parent while Codex runs, so stand in for the CLI.
+        let standIn = home.appendingPathComponent("codex")
+        try FileManager.default.copyItem(at: URL(fileURLWithPath: "/bin/sleep"), to: standIn)
+        let codex = try Process.run(standIn, arguments: ["60"])
+        defer { codex.terminate(); codex.waitUntilExit() }
         let result = LocalReconciler.scan(now: now, home: home)
         #expect(!result.unavailable.contains(.codexCLI))
         #expect(!result.sessions.contains { $0.sessionID == "child" })

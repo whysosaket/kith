@@ -65,9 +65,9 @@ public enum LocalReconciler {
             } else if status == "busy" { state = .running }
             else if status == "waiting" {
                 // Claude is blocked on the user; the question: prefix lets a later busy scan clear it,
-                // and updatedAt, set when the wait began, gives each wait its own alert.
+                // and statusUpdatedAt, set when the wait began, gives each wait its own alert.
                 state = .needsInput
-                attentionID = "question:waiting:\(Int(updated))"
+                attentionID = "question:waiting:\(Int(json["statusUpdatedAt"] as? Double ?? updated))"
             }
             else if status == "idle" { state = .ready }
             else if status == "shell" {
@@ -209,8 +209,8 @@ public enum LocalReconciler {
             }
             // Subagent work belongs to the thread that spawned it; count it there instead of listing it.
             if let parent = metadata?.parentID {
-                if status == "inProgress" && (now.timeIntervalSince(started) < 3600 ||
-                                              now.timeIntervalSince(rolloutWrite()) < 3600) {
+                if status == "inProgress" && (desktopRunning || cliRunning) &&
+                    (now.timeIntervalSince(started) < 3600 || now.timeIntervalSince(rolloutWrite()) < 3600) {
                     parentsWithActiveSubagents.insert(parent)
                 }
                 continue
