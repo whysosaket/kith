@@ -50,6 +50,7 @@ targets:
         CFBundleIconFile: Kith.icns
         CFBundleShortVersionString: 0.1.0
         LSUIElement: true
+        NSAppleEventsUsageDescription: Kith brings the terminal tab running a session to the front when you open it.
         NSHighResolutionCapable: true
     dependencies:
       - target: KithCore
@@ -79,6 +80,7 @@ targets:
         PRODUCT_NAME: Kith
         PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Resources/Kith.entitlements
         CODE_SIGN_STYLE: Automatic
         CODE_SIGNING_ALLOWED: YES
   KithCoreTests:

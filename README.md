@@ -47,11 +47,12 @@ The closed-lid helper only accepts a Kith app signed like the helper: by the sam
 1. **Hooks.** Open Kith → Settings → Monitoring → **Install hooks**. Then run `/hooks` in Codex and trust the new entries.
 2. **Notifications.** Allow Kith in System Settings → Notifications, including sounds. Kith warns you in the panel when macOS disables either.
 3. **Accessibility (optional, Codex Desktop only).** Codex Desktop doesn't report every prompt through hooks. With Accessibility access, Kith reads the **button titles** in Codex Desktop windows, such as "Approve" and "Deny", to tell when it's waiting for you. It reads nothing else and no other app.
-4. **Power helper (optional).** Settings → Power → enable the helper and approve it under System Settings → General → Login Items & Extensions. See [Power and safety](#power-and-safety).
+4. **Automation (optional, Terminal and iTerm2).** The first time you open a CLI session, macOS asks whether Kith may control your terminal. Allow it and Kith brings that session's own window and tab to the front. Without it, Kith only switches to the terminal app. Other terminals always get the app only.
+5. **Power helper (optional).** Settings → Power → enable the helper and approve it under System Settings → General → Login Items & Extensions. See [Power and safety](#power-and-safety).
 
 ## How it works
 
-- **Hooks.** Kith adds entries to `~/.claude/settings.json` and `~/.codex/hooks.json` that run `Kith.app/Contents/MacOS/kith-event`. Claude Code and Codex pass each hook event to that small binary on standard input. It keeps only the session ID, event name, working directory, turn and tool-call IDs, tool name, whether background tasks are running, and which terminal app owns the session. It then sends them to Kith over a user-only Unix socket. Prompts, tool inputs and tool outputs are dropped immediately.
+- **Hooks.** Kith adds entries to `~/.claude/settings.json` and `~/.codex/hooks.json` that run `Kith.app/Contents/MacOS/kith-event`. Claude Code and Codex pass each hook event to that small binary on standard input. It keeps only the session ID, event name, working directory, turn and tool-call IDs, tool name, whether background tasks are running, and which terminal app and tab (its tty, such as `/dev/ttys003`) own the session. It then sends them to Kith over a user-only Unix socket. Prompts, tool inputs and tool outputs are dropped immediately.
 - **Local scan.** Every 2 seconds Kith reads the agents' local session files to confirm state, including sessions that started before Kith. It catches anything a hook missed.
 - **Install and remove.** Installing hooks backs up each file once (to `settings.json.kith-backup` and `hooks.json.kith-backup`). Kith writes through symlinks and keeps the file's permissions. **Remove hooks** deletes only Kith's entries.
 

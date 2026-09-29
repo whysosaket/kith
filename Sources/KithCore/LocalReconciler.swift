@@ -73,11 +73,12 @@ public enum LocalReconciler {
                 state = claudeTranscriptState(sessionID: id, home: home).status == .ready ? .ready : .unavailable
             }
             else { state = .unavailable }
+            let terminal = processAlive ? TerminalLocator.locate(startingAt: Int32(pid)) : nil
             result.sessions.append(AgentSession(source: .claude, surface: .claudeCLI,
                 sessionID: id, projectPath: json["cwd"] as? String,
                 title: json["name"] as? String, status: state, lastActivity: date,
                 attentionID: attentionID,
-                terminalBundleID: processAlive ? TerminalLocator.bundleID(startingAt: Int32(pid)) : nil))
+                terminalBundleID: terminal?.bundleID, terminalTTY: terminal?.tty))
         }
     }
 

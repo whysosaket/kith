@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00C09C39193065EDEDE47AEB /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A78B66F29F08E245271646 /* main.swift */; };
 		039369A74702CE5CB99E66C5 /* AgentEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B05B8AE7E93C6E6923F9E5 /* AgentEvent.swift */; };
+		0E6843CE2905991FE42F8EA5 /* TerminalTabScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDA5412109E3329AD054C22 /* TerminalTabScript.swift */; };
 		0FCC0FD5E240B7D9C54F8D66 /* libKithCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5575DA1374A65D754D194E05 /* libKithCore.a */; };
 		13CE7EAB77FE98E2F6FA51D2 /* CodexAXProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F6BC2AC6E9A38438E87E76 /* CodexAXProbe.swift */; };
 		164221DA5E8FEF3C064587F5 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1C0841B051A0A4CF4F8AA4 /* SessionStore.swift */; };
@@ -127,6 +128,7 @@
 		D87EBE8B193177BD88E6B25D /* KithMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithMenu.swift; sourceTree = "<group>"; };
 		D9D769764EC99C493D22AD85 /* SessionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPresentation.swift; sourceTree = "<group>"; };
 		DA647E7F9CCC5C7CCE3FF412 /* KithWorkspaceWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithWorkspaceWindow.swift; sourceTree = "<group>"; };
+		DBDA5412109E3329AD054C22 /* TerminalTabScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTabScript.swift; sourceTree = "<group>"; };
 		DE4D902344ABE6BA9FFA3054 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		DEF3DAD8D1E3E0F3433C8D70 /* EventParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventParser.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -238,6 +240,7 @@
 				C28D557EBACBB0E5D60DBBD3 /* NotificationRouter.swift */,
 				B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */,
 				D9D769764EC99C493D22AD85 /* SessionPresentation.swift */,
+				DBDA5412109E3329AD054C22 /* TerminalTabScript.swift */,
 			);
 			name = KithApp;
 			path = Sources/KithApp;
@@ -471,6 +474,7 @@
 				87CBFB80F665E586E721D55F /* NotificationRouter.swift in Sources */,
 				591E2B34123174AD9A2A2F63 /* PowerClient.swift in Sources */,
 				C57E47038A44EFEC7634F04E /* SessionPresentation.swift in Sources */,
+				0E6843CE2905991FE42F8EA5 /* TerminalTabScript.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -636,6 +640,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/Kith.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -745,6 +750,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/Kith.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;

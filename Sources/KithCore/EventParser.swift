@@ -2,7 +2,7 @@ import Foundation
 
 public enum EventParser {
     public static func parse(source: AgentSource, payload: [String: Any],
-                             terminalBundleID: String? = nil) -> AgentEvent? {
+                             terminal: TerminalLocation? = nil) -> AgentEvent? {
         guard let sessionID = payload["session_id"] as? String, !sessionID.isEmpty,
               let name = payload["hook_event_name"] as? String else { return nil }
         let turnID = payload["turn_id"] as? String
@@ -59,6 +59,7 @@ public enum EventParser {
         return AgentEvent(source: source, sessionID: sessionID, turnID: turnID,
                           kind: kind, projectPath: projectPath,
                           attentionID: attentionID, hasBackgroundWork: hasBackgroundWork,
-                          terminalBundleID: terminalBundleID, detail: detail)
+                          terminalBundleID: terminal?.bundleID, terminalTTY: terminal?.tty,
+                          detail: detail)
     }
 }

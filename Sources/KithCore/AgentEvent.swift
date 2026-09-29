@@ -51,6 +51,7 @@ public struct AgentEvent: Codable, Sendable, Identifiable {
     public let attentionID: String?
     public let hasBackgroundWork: Bool
     public let terminalBundleID: String?
+    public let terminalTTY: String?
     /// Short, content-free reason shown in notifications, such as "Approve Bash".
     public let detail: String?
 
@@ -59,7 +60,8 @@ public struct AgentEvent: Codable, Sendable, Identifiable {
         turnID: String? = nil, kind: AgentEventKind,
         timestamp: Date = Date(), projectPath: String? = nil,
         attentionID: String? = nil, hasBackgroundWork: Bool = false,
-        terminalBundleID: String? = nil, detail: String? = nil
+        terminalBundleID: String? = nil, terminalTTY: String? = nil,
+        detail: String? = nil
     ) {
         self.schemaVersion = 1
         self.id = id
@@ -72,6 +74,7 @@ public struct AgentEvent: Codable, Sendable, Identifiable {
         self.attentionID = attentionID
         self.hasBackgroundWork = hasBackgroundWork
         self.terminalBundleID = terminalBundleID
+        self.terminalTTY = terminalTTY
         self.detail = detail
     }
 }
@@ -97,6 +100,7 @@ public struct AgentSession: Codable, Sendable, Identifiable {
     public var stopCandidate: Bool
     public var hasBackgroundWork: Bool
     public var terminalBundleID: String?
+    public var terminalTTY: String?
 
     public var id: String { "\(source.rawValue):\(sessionID)" }
 
@@ -105,7 +109,7 @@ public struct AgentSession: Codable, Sendable, Identifiable {
                 title: String? = nil, status: SessionStatus = .ready,
                 lastActivity: Date = Date(), attentionID: String? = nil,
                 stopCandidate: Bool = false, hasBackgroundWork: Bool = false,
-                terminalBundleID: String? = nil) {
+                terminalBundleID: String? = nil, terminalTTY: String? = nil) {
         self.source = source
         self.surface = surface
         self.sessionID = sessionID
@@ -118,5 +122,6 @@ public struct AgentSession: Codable, Sendable, Identifiable {
         self.stopCandidate = stopCandidate
         self.hasBackgroundWork = hasBackgroundWork
         self.terminalBundleID = terminalBundleID
+        self.terminalTTY = terminalTTY
     }
 }

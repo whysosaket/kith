@@ -63,6 +63,7 @@ public struct SessionStore: Sendable {
         session.lastActivity = timestamp
         session.projectPath = event.projectPath ?? session.projectPath
         session.terminalBundleID = event.terminalBundleID ?? session.terminalBundleID
+        session.terminalTTY = event.terminalTTY ?? session.terminalTTY
         session.turnID = event.turnID ?? session.turnID
 
         switch event.kind {
@@ -109,6 +110,7 @@ public struct SessionStore: Sendable {
         if let old {
             result.projectPath = result.projectPath ?? old.projectPath
             result.terminalBundleID = result.terminalBundleID ?? old.terminalBundleID
+            result.terminalTTY = result.terminalTTY ?? old.terminalTTY
             result.title = result.title ?? old.title
             result.attentionID = result.attentionID ?? old.attentionID
             if old.status == .needsInput &&

@@ -51,4 +51,14 @@ struct SessionSafetyTests {
         #expect(store.sessions["codex:test"]?.status == .running)
         #expect(!store.allSafeToFinish)
     }
+
+    @Test func scanWithoutTerminalKeepsHookTab() {
+        var store = SessionStore()
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .turnStarted,
+                                   terminalBundleID: "com.apple.Terminal", terminalTTY: "/dev/ttys003"),
+                        surface: .claudeCLI)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .running))
+        #expect(store.sessions["claude:test"]?.terminalTTY == "/dev/ttys003")
+    }
 }

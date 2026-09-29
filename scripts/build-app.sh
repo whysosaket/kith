@@ -37,7 +37,8 @@ else
 fi
 codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id.power" "$app_dir/Contents/MacOS/KithPowerHelper"
 codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id.event" "$app_dir/Contents/MacOS/kith-event"
-codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id" "$app_dir"
+codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id" \
+    --entitlements Resources/Kith.entitlements "$app_dir"
 codesign --verify --deep --strict "$app_dir"
 echo "Built $app_dir"
 if [[ "$identity" == "-" ]]; then

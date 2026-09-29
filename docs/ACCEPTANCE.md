@@ -12,7 +12,7 @@ For Claude Desktop, Claude CLI, Codex Desktop, and Codex CLI, verify:
 - Completion produces one Ready alert only after the read-only state confirms the turn stopped.
 - Failure and interruption appear accurately. A failed or unknown session prevents finish actions.
 - Restart Kith during a turn, disable a hook, and test a changed local-state schema. The integration must show unavailable instead of silently reporting completion.
-- A click on a Codex Desktop alert opens that thread. Claude Desktop activates, and CLI opens the owning terminal when identified.
+- A click on a Codex Desktop alert opens that thread. Claude Desktop activates, and CLI opens the owning terminal when identified. In Terminal and iTerm2, with Automation allowed, it brings the session's own window and tab to the front.
 
 Check event latency against the hook invocation time: under 5 seconds for hook events and under 10 seconds for scan-only changes.
 
