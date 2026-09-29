@@ -52,9 +52,9 @@ The closed-lid helper only accepts a Kith app signed like the helper: by the sam
 
 ## How it works
 
-- **Hooks.** Kith adds entries to `~/.claude/settings.json` and `~/.codex/hooks.json` that run `Kith.app/Contents/MacOS/kith-event`. Claude Code and Codex pass each hook event to that small binary on standard input. It keeps only the session ID, event name, working directory, turn and tool-call IDs, tool name, whether background tasks are running, and which terminal app and tab (its tty, such as `/dev/ttys003`) own the session. It then sends them to Kith over a user-only Unix socket. Prompts, tool inputs and tool outputs are dropped immediately.
+- **Hooks.** Kith adds entries that run `Kith.app/Contents/MacOS/kith-event` to `~/.claude/settings.json` and `~/.codex/hooks.json`, skipping any agent that isn't installed. Claude Code and Codex pass each hook event to that small binary on standard input. It keeps only the session ID, event name, working directory, turn and tool-call IDs, tool name, whether background tasks are running, and which terminal app and tab (its tty, such as `/dev/ttys003`) own the session. It then sends them to Kith over a user-only Unix socket. Prompts, tool inputs and tool outputs are dropped immediately.
 - **Local scan.** Every 2 seconds Kith reads the agents' local session files to confirm state, including sessions that started before Kith. It catches anything a hook missed.
-- **Install and remove.** Installing hooks backs up each file once (to `settings.json.kith-backup` and `hooks.json.kith-backup`). Kith writes through symlinks and keeps the file's permissions. **Remove hooks** deletes only Kith's entries.
+- **Install and remove.** Installing hooks backs up each file it changes once (to `settings.json.kith-backup` and `hooks.json.kith-backup`). Kith writes through symlinks and keeps the file's permissions. **Remove hooks** deletes only Kith's entries.
 
 ## Privacy
 

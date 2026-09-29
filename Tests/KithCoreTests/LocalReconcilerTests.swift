@@ -33,21 +33,36 @@ struct LocalReconcilerTests {
 
     @Test func activeSubagentKeepsItsParentWorking() throws {
         let now = Date()
-        let spawn = #"{"subagent":{"thread_spawn":{"parent_thread_id":"parent","depth":1}}}"#
-        try makeCodexHome(now: now, turns: [("parent", "completed"), ("child", "inProgress")],
-                          threads: [("parent", "exec", "Parent"), ("child", spawn, "")])
+        let spawn = { (parent: String) in #"{"subagent":{"thread_spawn":{"parent_thread_id":"\#(parent)","depth":1}}}"# }
+        let fresh = home.appendingPathComponent("fresh.jsonl")
+        let stale = home.appendingPathComponent("stale.jsonl")
+        try makeCodexHome(now: now,
+                          turns: [("parent", "completed"), ("child", "inProgress"),
+                                  ("longParent", "completed"), ("longChild", "inProgress"),
+                                  ("staleParent", "completed"), ("staleChild", "inProgress")],
+                          threads: [("parent", "exec", "Parent"), ("child", spawn("parent"), ""),
+                                    ("longParent", "exec", "Long"), ("longChild", spawn("longParent"), ""),
+                                    ("staleParent", "exec", "Stale"), ("staleChild", spawn("staleParent"), "")],
+                          startedAgo: ["longChild": 7200, "staleChild": 7200],
+                          rollouts: ["longChild": fresh, "staleChild": stale])
         defer { try? FileManager.default.removeItem(at: home) }
+        for url in [fresh, stale] { try Data().write(to: url) }
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-7200)],
+                                              ofItemAtPath: stale.path)
         let result = LocalReconciler.scan(now: now, home: home)
         #expect(!result.unavailable.contains(.codexCLI))
         #expect(!result.sessions.contains { $0.sessionID == "child" })
         #expect(result.sessions.first { $0.sessionID == "parent" }?.status == .running)
+        // Past an hour, a subagent holds its parent only while it still writes its rollout.
+        #expect(result.sessions.first { $0.sessionID == "longParent" }?.status == .running)
+        #expect(result.sessions.first { $0.sessionID == "staleParent" }?.status == .ready)
     }
 
     private func makeCodexHome(now: Date, turns: [(id: String, status: String)],
-                               threads: [(id: String, source: String, name: String)]) throws {
+                               threads: [(id: String, source: String, name: String)],
+                               startedAgo: [String: Int] = [:], rollouts: [String: URL] = [:]) throws {
         let codex = home.appendingPathComponent(".codex")
         try FileManager.default.createDirectory(at: codex, withIntermediateDirectories: true)
-        let started = Int(now.timeIntervalSince1970) - 60
         try execute(codex.appendingPathComponent("thread_history_1.sqlite"), [
             "PRAGMA journal_mode=WAL",
             """
@@ -55,6 +70,7 @@ struct LocalReconcilerTests {
                 status TEXT, started_at INTEGER, completed_at INTEGER)
             """
         ] + turns.map { turn in
+            let started = Int(now.timeIntervalSince1970) - (startedAgo[turn.id] ?? 60)
             let completed = turn.status == "inProgress" ? "NULL" : String(started + 30)
             return "INSERT INTO thread_turns VALUES ('\(turn.id)','turn-\(turn.id)',1," +
                 "'\(turn.status)',\(started),\(completed))"
@@ -63,8 +79,9 @@ struct LocalReconcilerTests {
             "PRAGMA journal_mode=WAL",
             "CREATE TABLE threads (id TEXT, source TEXT, cwd TEXT, name TEXT, rollout_path TEXT)"
         ] + threads.map { thread in
-            "INSERT INTO threads VALUES ('\(thread.id)','\(thread.source)','/tmp/project'," +
-                "'\(thread.name)',NULL)"
+            let rollout = rollouts[thread.id].map { "'\($0.path)'" } ?? "NULL"
+            return "INSERT INTO threads VALUES ('\(thread.id)','\(thread.source)','/tmp/project'," +
+                "'\(thread.name)',\(rollout))"
         })
     }
 

@@ -97,8 +97,6 @@ public enum HookInstaller {
 
         // Write through symlinks so dotfile managers keep their link, and keep one pristine backup.
         let target = url.resolvingSymlinksInPath()
-        try manager.createDirectory(at: target.deletingLastPathComponent(),
-                                    withIntermediateDirectories: true)
         let backup = target.appendingPathExtension("kith-backup")
         if data != nil && !manager.fileExists(atPath: backup.path) {
             try manager.copyItem(at: target, to: backup)

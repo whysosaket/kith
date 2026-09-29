@@ -202,9 +202,15 @@ public enum LocalReconciler {
             let ended = sqlite3_column_type(statement, 4) == SQLITE_NULL ? started :
                 Date(timeIntervalSince1970: Double(sqlite3_column_int64(statement, 4)))
             let metadata = codexMetadata(id: id, in: threads)
+            let rolloutWrite = {
+                metadata?.transcript.flatMap {
+                    (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                } ?? .distantPast
+            }
             // Subagent work belongs to the thread that spawned it; count it there instead of listing it.
             if let parent = metadata?.parentID {
-                if status == "inProgress" && now.timeIntervalSince(started) < 3600 {
+                if status == "inProgress" && (now.timeIntervalSince(started) < 3600 ||
+                                              now.timeIntervalSince(rolloutWrite()) < 3600) {
                     parentsWithActiveSubagents.insert(parent)
                 }
                 continue
@@ -217,9 +223,7 @@ public enum LocalReconciler {
                     result.unavailable.insert(metadata?.surface ?? .codexCLI)
                     processMissing = true
                 } else if now.timeIntervalSince(started) >= 3600 {
-                    let lastWrite = metadata?.transcript.flatMap {
-                        (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-                    } ?? .distantPast
+                    let lastWrite = rolloutWrite()
                     if now.timeIntervalSince(lastWrite) >= 86_400 { continue }
                     if now.timeIntervalSince(lastWrite) >= 3600 {
                         result.unavailable.insert(metadata?.surface ?? .codexCLI)
