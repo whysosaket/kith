@@ -63,7 +63,8 @@ To work out session state, Kith **reads**:
 
 - Claude Code session metadata (`~/.claude/sessions/*.json`, Claude Desktop's `claude-code-sessions`), including session titles and working directories
 - the last 128 KB of the current Claude Code transcript (`~/.claude/projects/**/*.jsonl`), where it looks only at message types and stop reasons
-- Codex's local SQLite databases (`~/.codex/thread_history_1.sqlite`, `~/.codex/sqlite/codex-dev.db`) and the last 256 KB of the current rollout file (`~/.codex/sessions/**`), where it looks only at event types and call IDs
+- Codex's local SQLite databases (`~/.codex/thread_history_1.sqlite`, `~/.codex/state_5.sqlite`), where it reads turn status and each thread's source, working directory, generated name and rollout path
+- the last 256 KB of the current Codex rollout file (`~/.codex/sessions/**`), where it looks only at event types and call IDs
 - button titles in Codex Desktop windows, if you grant Accessibility
 
 Kith **stores** only session IDs, statuses and timestamps (`sessions.json`), plus the IDs of notifications it already sent (`state.json`). Both are in `~/Library/Application Support/Kith`. It doesn't save prompts, transcripts, tool arguments or credentials.
@@ -82,7 +83,7 @@ Claude Code and Codex don't publish a stable API for session state, so Kith reli
 
 - hook event names and payloads;
 - Claude session JSON and transcript line types;
-- Codex's `thread_turns` and `local_thread_catalog` tables and rollout event types;
+- Codex's `thread_turns` and `threads` tables and rollout event types;
 - Codex Desktop's English button titles;
 - the `codex://threads/` link format.
 

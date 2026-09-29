@@ -18,6 +18,7 @@
 		43A12DD198B477F60DE857E4 /* PowerProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */; };
 		4C0D3915D2BA04C32AD050DD /* KithWorkspaceWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA647E7F9CCC5C7CCE3FF412 /* KithWorkspaceWindow.swift */; };
 		4C5ED5B442A85B823726212F /* KithPowerHelper in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 449E91CBD887C292BE06D36E /* KithPowerHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4E2DCC39F52C901118A355AE /* LocalReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A71105EA167F97640B8C35E /* LocalReconcilerTests.swift */; };
 		52403F1036F92297DDE3CA87 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE4D902344ABE6BA9FFA3054 /* main.swift */; };
 		58A6B599D2CC3AEE3313DB27 /* KithPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96343F71A51B453F06773E7 /* KithPaths.swift */; };
 		591E2B34123174AD9A2A2F63 /* PowerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */; };
@@ -104,6 +105,7 @@
 		093BCDF0FE2F82258D1A28E0 /* KithCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KithCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		161B85EB63D123A4422F18C2 /* KithSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithSettings.swift; sourceTree = "<group>"; };
 		31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerProtocol.swift; sourceTree = "<group>"; };
+		3A71105EA167F97640B8C35E /* LocalReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalReconcilerTests.swift; sourceTree = "<group>"; };
 		449E91CBD887C292BE06D36E /* KithPowerHelper */ = {isa = PBXFileReference; includeInIndex = 0; path = KithPowerHelper; sourceTree = BUILT_PRODUCTS_DIR; };
 		45F0AAAFBD58A494DD3CF070 /* EventSpool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventSpool.swift; sourceTree = "<group>"; };
 		510BA1ED365DA746BBBE22DF /* LocalReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalReconciler.swift; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 		C1BA66230AAF4E8FA087C9D8 /* KithCoreTests */ = {
 			isa = PBXGroup;
 			children = (
+				3A71105EA167F97640B8C35E /* LocalReconcilerTests.swift */,
 				968C6A3FEFF1C783994EE1E9 /* SessionSafetyTests.swift */,
 			);
 			name = KithCoreTests;
@@ -501,6 +504,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4E2DCC39F52C901118A355AE /* LocalReconcilerTests.swift in Sources */,
 				A3650CF8340A0BC90BBAE6A0 /* SessionSafetyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
