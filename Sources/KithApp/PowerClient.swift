@@ -88,17 +88,19 @@ final class PowerClient {
         if shouldHold {
             if leaseActive && Date().timeIntervalSince(lastRenewal) < 10 { return }
             requestInFlight = true
+            let renewing = leaseActive
             call { proxy, reply in
-                if self.leaseActive { proxy.renew(leaseID: self.leaseID, withReply: reply) }
+                if renewing { proxy.renew(leaseID: self.leaseID, withReply: reply) }
                 else { proxy.acquire(leaseID: self.leaseID, withReply: reply) }
             } completion: { success, message in
                 self.requestInFlight = false
                 self.leaseActive = success
                 if success {
                     self.lastRenewal = Date()
-                    self.externalWakeOwner = message == "External wake hold"
+                    if !renewing { self.externalWakeOwner = message == "External wake hold" }
                 }
-                else { report(message) }
+                // A lapsed lease, such as after a helper restart, is acquired again on the next tick.
+                else if !renewing { report(message) }
             }
         } else if leaseActive {
             requestInFlight = true
@@ -136,6 +138,13 @@ final class PowerClient {
         if connection == nil {
             let connection = NSXPCConnection(machServiceName: PowerService.name, options: .privileged)
             connection.remoteObjectInterface = NSXPCInterface(with: PowerServiceProtocol.self)
+            // An invalidated connection never recovers, so drop it and reconnect on the next call.
+            let identity = ObjectIdentifier(connection)
+            connection.invalidationHandler = { @Sendable [weak self] in
+                Task { @MainActor in
+                    if let self, self.connection.map(ObjectIdentifier.init) == identity { self.connection = nil }
+                }
+            }
             connection.resume()
             self.connection = connection
         }

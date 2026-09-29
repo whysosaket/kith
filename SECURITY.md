@@ -10,7 +10,7 @@ Include the Kith commit or version, your macOS version, and steps to reproduce. 
 
 These parts matter most:
 
-- **Power helper** (`Sources/KithPowerHelper`): runs as root and can sleep or shut down the Mac and change the global `SleepDisabled` setting. It only accepts connections from a Kith app signed by the same Apple Developer team, checked against the caller's audit token.
+- **Power helper** (`Sources/KithPowerHelper`): runs as root and can sleep or shut down the Mac and change the global `SleepDisabled` setting. It only accepts connections from a Kith app signed by the same Apple Developer team or, for self-signed builds, with the exact same certificate, checked against the caller's audit token.
 - **Event socket and spool** (`Sources/KithCore/EventSocket.swift`, `EventSpool.swift`): user-only files under `~/Library/Application Support/Kith` that decide what Kith believes about your sessions.
 - **Hook installer** (`Sources/KithCore/HookInstaller.swift`): edits `~/.claude/settings.json` and `~/.codex/hooks.json`.
 - **Local reads** (`Sources/KithCore/LocalReconciler.swift`): reads agent session files and transcripts to work out status.

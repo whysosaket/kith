@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import KithCore
 import Security
@@ -179,15 +180,21 @@ private final class PowerController: NSObject, PowerServiceProtocol, @unchecked 
 private final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
     let controller = PowerController()
 
-    /// Only the Kith app signed by the helper's own team may call it. XPC checks this against the
-    /// caller's audit token, so a reused PID cannot pass. Builds without a team ID get no clients.
+    /// Only the Kith app signed like the helper may call it: by the same Apple team, or for local
+    /// self-signed builds by the exact same certificate. XPC checks this against the caller's
+    /// audit token, so a reused PID cannot pass. Ad hoc builds have no certificate and get no clients.
     private let clientRequirement: String? = {
         var code: SecCode?
         guard SecCodeCopySelf(SecCSFlags(), &code) == errSecSuccess, let code,
-              let team = signingInfo(code: code)?[kSecCodeInfoTeamIdentifier as String] as? String,
-              !team.isEmpty else { return nil }
-        return "identifier \"\(PowerService.clientIdentifier)\" and anchor apple generic " +
-            "and certificate leaf[subject.OU] = \"\(team)\""
+              let info = signingInfo(code: code) else { return nil }
+        let identifier = "identifier \"\(PowerService.clientIdentifier)\""
+        if let team = info[kSecCodeInfoTeamIdentifier as String] as? String, !team.isEmpty {
+            return "\(identifier) and anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
+        }
+        guard let certificates = info[kSecCodeInfoCertificates as String] as? [SecCertificate],
+              let leaf = certificates.first else { return nil }
+        let digest = Insecure.SHA1.hash(data: SecCertificateCopyData(leaf) as Data)
+        return "\(identifier) and certificate leaf = H\"\(digest.map { String(format: "%02x", $0) }.joined())\""
     }()
 
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {

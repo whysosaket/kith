@@ -1,6 +1,6 @@
 # Kith acceptance checks
 
-Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Enable after live validation** off until every applicable check passes. Use a signed build with the same Apple-issued identity on the app and privileged helper. Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
+Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Enable after live validation** off until every applicable check passes. Use a build whose app and privileged helper share one signing identity (Apple-issued or the local self-signed one). Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
 
 ## Session monitoring
 
@@ -31,6 +31,6 @@ Before testing, note `pmset -g` → `SleepDisabled` and save all work. Verify th
 
 With **no external display**, test a long-running turn with the lid closed on AC, then on battery. Change power source during a run. Confirm the agent continues and Kith shows the hold active *before* closing the lid. After each test, confirm `SleepDisabled` returns to its prior value. Repeat after killing the app, restarting the helper, and disabling the helper. The 45-second lease should restore the setting after an app crash.
 
-Confirm that a self-signed or ad hoc build cannot use the helper: Power must show it as unavailable. A build signed with the same Apple-issued identity as the helper must connect.
+Confirm that an ad hoc build, or an app signed with a different certificate than the helper, cannot use the helper and shows the error in Power. An app signed with the helper's identity must connect, and must reconnect after the helper is disabled and enabled again in Settings → Power, without relaunching Kith.
 
 Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Power after completing these checks.

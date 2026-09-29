@@ -40,7 +40,7 @@ Install to `/Applications` before you install hooks. Hooks point at the `kith-ev
 
 Without an identity, builds are ad hoc signed and macOS treats every rebuild as a new app. Accessibility may then stay switched on while macOS rejects the new binary. Remove Kith from System Settings → Privacy & Security → Accessibility and add it again after each ad hoc build.
 
-The closed-lid helper only accepts a Kith app signed by the same Apple Developer team as the helper. That requires an Apple-issued identity, for example `KITH_SIGN_IDENTITY="Developer ID Application: …" scripts/build-app.sh`. Monitoring, notifications and idle-sleep holding all work with self-signed builds.
+The closed-lid helper only accepts a Kith app signed like the helper: by the same Apple Developer team, or, for self-signed builds, with the exact same certificate. Ad hoc builds can't use it. Monitoring, notifications and idle-sleep holding work with any build. Without a team ID, macOS ties the helper's registration to that exact build, so after each rebuild turn **Disable power helper** and then **Enable power helper** in Settings → Power, then switch closed-lid work back on.
 
 ## First run
 
