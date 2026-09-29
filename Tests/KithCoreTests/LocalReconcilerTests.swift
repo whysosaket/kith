@@ -10,6 +10,8 @@ struct LocalReconcilerTests {
     @Test func missingAgentsAreNotMonitoringFailures() throws {
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: home) }
+        try HookInstaller.install(executable: URL(fileURLWithPath: "/Applications/Kith.app/Contents/MacOS/kith-event"),
+                                  home: home)
         let result = LocalReconciler.scan(home: home)
         #expect(!result.unavailable.contains(.claudeCLI))
         #expect(!result.unavailable.contains(.codexCLI))

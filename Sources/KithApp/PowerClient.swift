@@ -139,11 +139,8 @@ final class PowerClient {
             let connection = NSXPCConnection(machServiceName: PowerService.name, options: .privileged)
             connection.remoteObjectInterface = NSXPCInterface(with: PowerServiceProtocol.self)
             // An invalidated connection never recovers, so drop it and reconnect on the next call.
-            let identity = ObjectIdentifier(connection)
             connection.invalidationHandler = { @Sendable [weak self] in
-                Task { @MainActor in
-                    if let self, self.connection.map(ObjectIdentifier.init) == identity { self.connection = nil }
-                }
+                Task { @MainActor in self?.connection = nil }
             }
             connection.resume()
             self.connection = connection

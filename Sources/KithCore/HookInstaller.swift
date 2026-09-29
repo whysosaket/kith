@@ -36,6 +36,7 @@ public enum HookInstaller {
                                    home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
         AgentSource.allCases.allSatisfy { source in
             let url = configURL(for: source, home: home)
+            guard FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path) else { return true }
             guard let data = try? Data(contentsOf: url),
                   let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   let hooks = root["hooks"] as? [String: Any] else { return false }
@@ -54,6 +55,8 @@ public enum HookInstaller {
                                home: URL, installing: Bool) throws {
         let url = configURL(for: source, home: home)
         let manager = FileManager.default
+        // Creating an absent agent's folder would make the local scan treat that agent as installed.
+        guard manager.fileExists(atPath: url.deletingLastPathComponent().path) else { return }
         let data = try? Data(contentsOf: url)
         let parsed = data.flatMap { try? JSONSerialization.jsonObject(with: $0) }
         guard data == nil || parsed is [String: Any] else {

@@ -64,9 +64,10 @@ public enum LocalReconciler {
                 state = claudeTranscriptState(sessionID: id, home: home).status == .ready ? .ready : .unavailable
             } else if status == "busy" { state = .running }
             else if status == "waiting" {
-                // Claude is blocked on the user; the question: prefix lets a later busy scan clear it.
+                // Claude is blocked on the user; the question: prefix lets a later busy scan clear it,
+                // and updatedAt, set when the wait began, gives each wait its own alert.
                 state = .needsInput
-                attentionID = "question:waiting"
+                attentionID = "question:waiting:\(Int(updated))"
             }
             else if status == "idle" { state = .ready }
             else if status == "shell" {
@@ -260,7 +261,6 @@ public enum LocalReconciler {
     /// connection cannot recreate them. Without a -wal every commit is in the main file,
     /// so it is read as immutable instead.
     private static func openCodexDatabase(_ url: URL) -> OpaquePointer? {
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         var components = URLComponents()
         components.scheme = "file"
         components.path = url.path
