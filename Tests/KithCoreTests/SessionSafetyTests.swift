@@ -1,33 +1,75 @@
-import XCTest
+import Foundation
+import Testing
 @testable import KithCore
 
-final class SessionSafetyTests: XCTestCase {
-    func testInteractivePromptBlocksCompletionUntilResolved() {
+struct SessionSafetyTests {
+    @Test func interactivePromptBlocksCompletionUntilResolved() {
         var store = SessionStore()
         let id = "session-test"
         _ = store.apply(AgentEvent(source: .claude, sessionID: id, kind: .turnStarted), surface: .claudeCLI)
         _ = store.apply(AgentEvent(source: .claude, sessionID: id, kind: .attentionOpened), surface: .claudeCLI)
-        XCTAssertFalse(store.allSafeToFinish)
+        #expect(!store.allSafeToFinish)
         _ = store.apply(AgentEvent(source: .claude, sessionID: id, kind: .attentionResolved), surface: .claudeCLI)
-        XCTAssertFalse(store.allSafeToFinish)
+        #expect(!store.allSafeToFinish)
     }
 
-    func testFailedAndUnavailableSessionsBlockFinish() {
-        for status: SessionStatus in [.failed, .unavailable] {
-            var store = SessionStore()
-            _ = store.reconcile(AgentSession(source: .codex, surface: .codexCLI,
-                                             sessionID: "test", status: status))
-            XCTAssertFalse(store.allSafeToFinish)
-        }
+    @Test(arguments: [SessionStatus.failed, .unavailable])
+    func failedAndUnavailableSessionsBlockFinish(status: SessionStatus) {
+        var store = SessionStore()
+        _ = store.reconcile(AgentSession(source: .codex, surface: .codexCLI,
+                                         sessionID: "test", status: status))
+        #expect(!store.allSafeToFinish)
     }
 
-    func testStopHookAloneDoesNotMarkReady() {
+    @Test func scanConfirmsRestoredSessionDespiteNewerHook() {
+        var store = SessionStore()
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .unavailable, lastActivity: .distantPast))
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .sessionStarted),
+                        surface: .claudeCLI)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .running, lastActivity: Date().addingTimeInterval(-60)))
+        #expect(store.sessions["claude:test"]?.status == .running)
+    }
+
+    @Test func waitingScanBlocksFinishUntilBusyAgain() {
+        var store = SessionStore()
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .needsInput, attentionID: "question:waiting"))
+        #expect(!store.allSafeToFinish)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .running))
+        #expect(store.sessions["claude:test"]?.status == .running)
+    }
+
+    @Test func stopHookAloneDoesNotMarkReady() {
         var store = SessionStore()
         _ = store.apply(AgentEvent(source: .codex, sessionID: "test", kind: .turnStarted),
                         surface: .codexCLI)
         _ = store.apply(AgentEvent(source: .codex, sessionID: "test", kind: .stopCandidate),
                         surface: .codexCLI)
-        XCTAssertEqual(store.sessions["codex:test"]?.status, .running)
-        XCTAssertFalse(store.allSafeToFinish)
+        #expect(store.sessions["codex:test"]?.status == .running)
+        #expect(!store.allSafeToFinish)
+    }
+
+    @Test func scanWithoutTerminalKeepsHookTab() {
+        var store = SessionStore()
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .turnStarted,
+                                   terminalBundleID: "com.apple.Terminal", terminalTTY: "/dev/ttys003"),
+                        surface: .claudeCLI)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .running))
+        #expect(store.sessions["claude:test"]?.terminalTTY == "/dev/ttys003")
+    }
+
+    @Test func toolResultEndsScannedWait() {
+        var store = SessionStore()
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .attentionOpened,
+                                   attentionID: "toolu_1"), surface: .claudeCLI)
+        _ = store.reconcile(AgentSession(source: .claude, surface: .claudeCLI, sessionID: "test",
+                                         status: .needsInput, attentionID: "question:waiting:1"))
+        _ = store.apply(AgentEvent(source: .claude, sessionID: "test", kind: .attentionResolved,
+                                   attentionID: "toolu_1"), surface: .claudeCLI)
+        #expect(store.sessions["claude:test"]?.status == .running)
     }
 }

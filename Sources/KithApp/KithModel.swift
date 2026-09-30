@@ -265,17 +265,46 @@ final class KithModel: ObservableObject {
     func open(_ session: AgentSession) {
         switch session.surface {
         case .codexDesktop:
-            NSWorkspace.shared.open(URL(string: "codex://threads/\(session.sessionID)")!)
+            let threadID = session.sessionID.addingPercentEncoding(
+                withAllowedCharacters: .urlPathAllowed.subtracting(CharacterSet(charactersIn: "/")))
+            guard let url = threadID.flatMap({ URL(string: "codex://threads/\($0)") }) else {
+                message = "Could not open Codex thread"
+                return
+            }
+            NSWorkspace.shared.open(url)
         case .claudeDesktop:
             activateApplication("com.anthropic.claudefordesktop")
         case .claudeCLI, .codexCLI:
             if let bundleID = session.terminalBundleID {
-                activateApplication(bundleID)
+                focusTerminal(bundleID, tty: session.terminalTTY)
             } else {
                 activateApplication("com.apple.Terminal")
                 message = "Owning terminal could not be identified; opened Terminal."
             }
         }
+    }
+
+    /// Selects the session's own tab first where the terminal can be scripted, so activating shows it.
+    private func focusTerminal(_ bundleID: String, tty: String?) {
+        guard let tty, let script = TerminalTabScript.byBundleID[bundleID] else {
+            activateApplication(bundleID)
+            return
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script, tty]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        process.terminationHandler = { process in
+            let selected = process.terminationStatus == 0
+            Task { @MainActor in
+                self.activateApplication(bundleID)
+                if !selected {
+                    self.message = "Could not select the session's tab. Allow Kith under System Settings → Privacy & Security → Automation."
+                }
+            }
+        }
+        do { try process.run() } catch { activateApplication(bundleID) }
     }
 
     private func activateApplication(_ bundleID: String) {

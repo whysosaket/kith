@@ -88,17 +88,19 @@ final class PowerClient {
         if shouldHold {
             if leaseActive && Date().timeIntervalSince(lastRenewal) < 10 { return }
             requestInFlight = true
+            let renewing = leaseActive
             call { proxy, reply in
-                if self.leaseActive { proxy.renew(leaseID: self.leaseID, withReply: reply) }
+                if renewing { proxy.renew(leaseID: self.leaseID, withReply: reply) }
                 else { proxy.acquire(leaseID: self.leaseID, withReply: reply) }
             } completion: { success, message in
                 self.requestInFlight = false
                 self.leaseActive = success
                 if success {
                     self.lastRenewal = Date()
-                    self.externalWakeOwner = message == "External wake hold"
+                    if !renewing { self.externalWakeOwner = message == "External wake hold" }
                 }
-                else { report(message) }
+                // A lapsed lease, such as after a helper restart, is acquired again on the next tick.
+                else if !renewing { report(message) }
             }
         } else if leaseActive {
             requestInFlight = true
@@ -136,16 +138,21 @@ final class PowerClient {
         if connection == nil {
             let connection = NSXPCConnection(machServiceName: PowerService.name, options: .privileged)
             connection.remoteObjectInterface = NSXPCInterface(with: PowerServiceProtocol.self)
+            // An invalidated connection never recovers, so drop it and reconnect on the next call.
+            connection.invalidationHandler = { @Sendable [weak self] in
+                Task { @MainActor in self?.connection = nil }
+            }
             connection.resume()
             self.connection = connection
         }
-        guard let proxy = connection?.remoteObjectProxyWithErrorHandler({ error in
+        // XPC runs these on its own queue, so they must not inherit main-actor isolation.
+        guard let proxy = connection?.remoteObjectProxyWithErrorHandler({ @Sendable error in
             Task { @MainActor in gate.finish(false, error.localizedDescription) }
         }) as? PowerServiceProtocol else {
             gate.finish(false, "Power helper unavailable")
             return
         }
-        invoke(proxy) { success, message in
+        invoke(proxy) { @Sendable success, message in
             Task { @MainActor in gate.finish(success, message) }
         }
     }

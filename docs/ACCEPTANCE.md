@@ -1,6 +1,6 @@
-# Kith V1 acceptance on the target Mac
+# Kith acceptance checks
 
-Keep **Enable after live validation** off until every applicable check passes. Use a signed build with the same Apple-issued identity on the app and privileged helper. Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
+Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Enable after live validation** off until every applicable check passes. Use a build whose app and privileged helper share one signing identity (Apple-issued or the local self-signed one). Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
 
 ## Session monitoring
 
@@ -12,7 +12,7 @@ For Claude Desktop, Claude CLI, Codex Desktop, and Codex CLI, verify:
 - Completion produces one Ready alert only after the read-only state confirms the turn stopped.
 - Failure and interruption appear accurately. A failed or unknown session prevents finish actions.
 - Restart Kith during a turn, disable a hook, and test a changed local-state schema. The integration must show unavailable instead of silently reporting completion.
-- A click on a Codex Desktop alert opens that thread. Claude Desktop activates, and CLI opens the owning terminal when identified.
+- A click on a Codex Desktop alert opens that thread. Claude Desktop activates, and CLI opens the owning terminal when identified. In Terminal and iTerm2, with Automation allowed, it brings the session's own window and tab to the front.
 
 Check event latency against the hook invocation time: under 5 seconds for hook events and under 10 seconds for scan-only changes.
 
@@ -30,5 +30,7 @@ Check event latency against the hook invocation time: under 5 seconds for hook e
 Before testing, note `pmset -g` → `SleepDisabled` and save all work. Verify the idle assertion exists only during work plus the selected extra hold. Test a pending question, a new turn during the 60-second countdown, and explicit Cancel.
 
 With **no external display**, test a long-running turn with the lid closed on AC, then on battery. Change power source during a run. Confirm the agent continues and Kith shows the hold active *before* closing the lid. After each test, confirm `SleepDisabled` returns to its prior value. Repeat after killing the app, restarting the helper, and disabling the helper. The 45-second lease should restore the setting after an app crash.
+
+Confirm that an ad hoc build, or an app signed with a different certificate than the helper, cannot use the helper and shows the error in Power. An app signed with the helper's identity must connect, and must reconnect after the helper is disabled and enabled again in Settings → Power, without relaunching Kith.
 
 Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Power after completing these checks.

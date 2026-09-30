@@ -1,8 +1,9 @@
 import Foundation
 
 public enum PowerService {
-    public static let name = "dev.kith.power"
-    public static let plistName = "dev.kith.power.plist"
+    public static let clientIdentifier = "app.trykith.kith"
+    public static let name = "app.trykith.kith.power"
+    public static let plistName = "app.trykith.kith.power.plist"
 }
 
 @objc public protocol PowerServiceProtocol {

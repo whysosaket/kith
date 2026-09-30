@@ -55,12 +55,15 @@ public struct SessionStore: Sendable {
         let key = "\(event.source.rawValue):\(event.sessionID)"
         var session = sessions[key] ?? AgentSession(source: event.source, surface: surface,
                                                     sessionID: event.sessionID)
-        guard event.timestamp >= session.lastActivity.addingTimeInterval(-5) else { return nil }
+        // Senders set their own timestamp; a future one must not outrank later local scans.
+        let timestamp = min(event.timestamp, Date())
+        guard timestamp >= session.lastActivity.addingTimeInterval(-5) else { return nil }
         let oldStatus = session.status
         session.surface = surface
-        session.lastActivity = event.timestamp
+        session.lastActivity = timestamp
         session.projectPath = event.projectPath ?? session.projectPath
         session.terminalBundleID = event.terminalBundleID ?? session.terminalBundleID
+        session.terminalTTY = event.terminalTTY ?? session.terminalTTY
         session.turnID = event.turnID ?? session.turnID
 
         switch event.kind {
@@ -72,8 +75,10 @@ public struct SessionStore: Sendable {
             session.stopCandidate = false
             session.hasBackgroundWork = false
         case .attentionResolved:
+            // A scanned Claude wait replaces the hook's own ID, so any tool result ends it too.
             if let attentionID = session.attentionID,
-               attentionID == event.attentionID || attentionID == "prompt" {
+               attentionID == event.attentionID || attentionID == "prompt" ||
+                attentionID.hasPrefix("question:waiting:") {
                 session.status = .running
                 session.attentionID = nil
             }
@@ -98,12 +103,16 @@ public struct SessionStore: Sendable {
 
     public mutating func reconcile(_ observed: AgentSession) -> SessionStatus? {
         let old = sessions[observed.id]
+        // A confirmed scan replaces an unconfirmed session even when hook events are newer:
+        // most hooks refresh lastActivity without restoring the status lost on restart.
         guard old == nil || (old!.turnID != nil && old!.turnID == observed.turnID) ||
-              observed.lastActivity >= old!.lastActivity else { return nil }
+              observed.lastActivity >= old!.lastActivity ||
+              (old!.status == .unavailable && observed.status != .unavailable) else { return nil }
         var result = observed
         if let old {
             result.projectPath = result.projectPath ?? old.projectPath
             result.terminalBundleID = result.terminalBundleID ?? old.terminalBundleID
+            result.terminalTTY = result.terminalTTY ?? old.terminalTTY
             result.title = result.title ?? old.title
             result.attentionID = result.attentionID ?? old.attentionID
             if old.status == .needsInput &&

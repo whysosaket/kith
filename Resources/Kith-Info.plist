@@ -24,6 +24,8 @@
 	<string>1</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Kith brings the terminal tab running a session to the front when you open it.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 </dict>

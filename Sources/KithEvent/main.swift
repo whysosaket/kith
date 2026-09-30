@@ -7,5 +7,5 @@ let input = FileHandle.standardInput.readDataToEndOfFile()
 guard input.count <= 1_000_000,
       let payload = (try? JSONSerialization.jsonObject(with: input)) as? [String: Any],
       let event = EventParser.parse(source: source, payload: payload,
-                                    terminalBundleID: TerminalLocator.bundleID(startingAt: getppid())) else { exit(0) }
+                                    terminal: TerminalLocator.locate(startingAt: getppid())) else { exit(0) }
 if !EventSocket.send(event) { try? EventSpool.enqueue(event) }

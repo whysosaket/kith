@@ -14,11 +14,12 @@ public struct ReconcileResult: Sendable {
 }
 
 public enum LocalReconciler {
-    public static func scan(now: Date = Date()) -> ReconcileResult {
+    public static func scan(now: Date = Date(),
+                            home: URL = FileManager.default.homeDirectoryForCurrentUser) -> ReconcileResult {
         var result = ReconcileResult()
-        scanClaudeCLI(into: &result, now: now)
-        scanClaudeDesktop(into: &result, now: now)
-        scanCodex(into: &result, now: now)
+        scanClaudeCLI(into: &result, now: now, home: home)
+        scanClaudeDesktop(into: &result, now: now, home: home)
+        scanCodex(into: &result, now: now, home: home)
         switch CodexAXProbe.hasInteractivePrompt() {
         case .none:
             result.unavailable.insert(.codexDesktop)
@@ -34,9 +35,10 @@ public enum LocalReconciler {
         return result
     }
 
-    private static func scanClaudeCLI(into result: inout ReconcileResult, now: Date) {
-        let directory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/sessions")
+    private static func scanClaudeCLI(into result: inout ReconcileResult, now: Date, home: URL) {
+        let root = home.appendingPathComponent(".claude")
+        guard FileManager.default.fileExists(atPath: root.path) else { return }
+        let directory = root.appendingPathComponent("sessions")
         guard let files = try? FileManager.default.contentsOfDirectory(at: directory,
                 includingPropertiesForKeys: nil).filter({ $0.pathExtension == "json" }) else {
             result.unavailable.insert(.claudeCLI)
@@ -57,24 +59,32 @@ public enum LocalReconciler {
             let processAlive = pid > 0 && (kill(Int32(pid), 0) == 0 || errno == EPERM)
             guard processAlive || now.timeIntervalSince(date) < 3600 else { continue }
             let state: SessionStatus
-            if status == "busy" && !processAlive {
-                state = claudeTranscriptState(sessionID: id).status == .ready ? .ready : .unavailable
+            var attentionID: String?
+            if (status == "busy" || status == "waiting") && !processAlive {
+                state = claudeTranscriptState(sessionID: id, home: home).status == .ready ? .ready : .unavailable
             } else if status == "busy" { state = .running }
+            else if status == "waiting" {
+                // Claude is blocked on the user; the question: prefix lets a later busy scan clear it,
+                // and statusUpdatedAt, set when the wait began, gives each wait its own alert.
+                state = .needsInput
+                attentionID = "question:waiting:\(Int(json["statusUpdatedAt"] as? Double ?? updated))"
+            }
             else if status == "idle" { state = .ready }
             else if status == "shell" {
-                state = claudeTranscriptState(sessionID: id).status == .ready ? .ready : .unavailable
+                state = claudeTranscriptState(sessionID: id, home: home).status == .ready ? .ready : .unavailable
             }
             else { state = .unavailable }
+            let terminal = processAlive ? TerminalLocator.locate(startingAt: Int32(pid)) : nil
             result.sessions.append(AgentSession(source: .claude, surface: .claudeCLI,
                 sessionID: id, projectPath: json["cwd"] as? String,
                 title: json["name"] as? String, status: state, lastActivity: date,
-                terminalBundleID: processAlive ? TerminalLocator.bundleID(startingAt: Int32(pid)) : nil))
+                attentionID: attentionID,
+                terminalBundleID: terminal?.bundleID, terminalTTY: terminal?.tty))
         }
     }
 
-    private static func scanClaudeDesktop(into result: inout ReconcileResult, now: Date) {
-        let root = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Claude/claude-code-sessions")
+    private static func scanClaudeDesktop(into result: inout ReconcileResult, now: Date, home: URL) {
+        let root = home.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions")
         guard let walker = FileManager.default.enumerator(at: root,
             includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else {
             result.unavailable.insert(.claudeDesktop)
@@ -82,7 +92,7 @@ public enum LocalReconciler {
         }
         guard !NSRunningApplication.runningApplications(
             withBundleIdentifier: "com.anthropic.claudefordesktop").isEmpty else { return }
-        let transcripts = claudeTranscriptIndex()
+        let transcripts = claudeTranscriptIndex(home: home)
         for case let file as URL in walker where file.lastPathComponent.hasPrefix("local_") &&
             file.pathExtension == "json" {
             guard let values = try? file.resourceValues(forKeys: [.contentModificationDateKey]),
@@ -113,13 +123,13 @@ public enum LocalReconciler {
         }
     }
 
-    private static func claudeTranscriptState(sessionID: String) ->
+    private static func claudeTranscriptState(sessionID: String, home: URL) ->
         (status: SessionStatus, modifiedAt: Date?) {
-        claudeTranscriptState(sessionID: sessionID, index: claudeTranscriptIndex())
+        claudeTranscriptState(sessionID: sessionID, index: claudeTranscriptIndex(home: home))
     }
 
-    private static func claudeTranscriptIndex() -> [String: URL] {
-        let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
+    private static func claudeTranscriptIndex(home: URL) -> [String: URL] {
+        let root = home.appendingPathComponent(".claude/projects")
         guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else { return [:] }
         var result: [String: URL] = [:]
         for case let file as URL in walker where file.pathExtension == "jsonl" {
@@ -150,16 +160,15 @@ public enum LocalReconciler {
         return (.unavailable, nil)
     }
 
-    private static func scanCodex(into result: inout ReconcileResult, now: Date) {
-        let path = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex/thread_history_1.sqlite").path
-        var database: OpaquePointer?
-        guard sqlite3_open_v2(path, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX, nil) == SQLITE_OK,
-              let database else {
+    private static func scanCodex(into result: inout ReconcileResult, now: Date, home: URL) {
+        let root = home.appendingPathComponent(".codex")
+        guard FileManager.default.fileExists(atPath: root.path) else { return }
+        guard let database = openCodexDatabase(root.appendingPathComponent("thread_history_1.sqlite")),
+              let threads = openCodexDatabase(root.appendingPathComponent("state_5.sqlite")) else {
             result.unavailable.formUnion([.codexCLI, .codexDesktop])
             return
         }
-        defer { sqlite3_close(database) }
+        defer { sqlite3_close(database); sqlite3_close(threads) }
         let query = """
             SELECT t.thread_id,t.turn_id,t.status,t.started_at,t.completed_at
             FROM thread_turns t JOIN (
@@ -181,6 +190,8 @@ public enum LocalReconciler {
         let desktopRunning = !NSRunningApplication.runningApplications(
             withBundleIdentifier: "com.openai.codex").isEmpty
         let cliRunning = codexCLIProcessExists()
+        var sessions: [AgentSession] = []
+        var parentsWithActiveSubagents = Set<String>()
         while sqlite3_step(statement) == SQLITE_ROW {
             guard let idText = sqlite3_column_text(statement, 0),
                   let turnText = sqlite3_column_text(statement, 1),
@@ -190,7 +201,20 @@ public enum LocalReconciler {
             let started = Date(timeIntervalSince1970: Double(sqlite3_column_int64(statement, 3)))
             let ended = sqlite3_column_type(statement, 4) == SQLITE_NULL ? started :
                 Date(timeIntervalSince1970: Double(sqlite3_column_int64(statement, 4)))
-            let metadata = codexMetadata(id: id)
+            let metadata = codexMetadata(id: id, in: threads)
+            let rolloutWrite = {
+                metadata?.transcript.flatMap {
+                    (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                } ?? .distantPast
+            }
+            // Subagent work belongs to the thread that spawned it; count it there instead of listing it.
+            if let parent = metadata?.parentID {
+                if status == "inProgress" && (desktopRunning || cliRunning) &&
+                    (now.timeIntervalSince(started) < 3600 || now.timeIntervalSince(rolloutWrite()) < 3600) {
+                    parentsWithActiveSubagents.insert(parent)
+                }
+                continue
+            }
             var processMissing = false
             if status == "inProgress" {
                 let processRunning = metadata?.surface == .codexDesktop ? desktopRunning : cliRunning
@@ -199,9 +223,7 @@ public enum LocalReconciler {
                     result.unavailable.insert(metadata?.surface ?? .codexCLI)
                     processMissing = true
                 } else if now.timeIntervalSince(started) >= 3600 {
-                    let lastWrite = codexTranscriptURL(id: id).flatMap {
-                        (try? $0.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-                    } ?? .distantPast
+                    let lastWrite = rolloutWrite()
                     if now.timeIntervalSince(lastWrite) >= 86_400 { continue }
                     if now.timeIntervalSince(lastWrite) >= 3600 {
                         result.unavailable.insert(metadata?.surface ?? .codexCLI)
@@ -209,8 +231,9 @@ public enum LocalReconciler {
                     }
                 }
             }
-            let pendingQuestion = status == "inProgress" ?
-                codexPendingQuestion(id: id, since: started.addingTimeInterval(-2)) : nil
+            let pendingQuestion = status == "inProgress" ? metadata?.transcript.flatMap {
+                codexPendingQuestion(in: $0, since: started.addingTimeInterval(-2))
+            } : nil
             let state: SessionStatus
             switch status {
             case "inProgress": state = processMissing ? .unavailable :
@@ -222,7 +245,7 @@ public enum LocalReconciler {
             if metadata == nil && status == "inProgress" {
                 result.unavailable.formUnion([.codexCLI, .codexDesktop])
             }
-            result.sessions.append(AgentSession(source: .codex, surface: metadata?.surface ?? .codexCLI,
+            sessions.append(AgentSession(source: .codex, surface: metadata?.surface ?? .codexCLI,
                 sessionID: id, turnID: String(cString: turnText),
                 projectPath: metadata?.projectPath, title: metadata?.title,
                 status: state, lastActivity: ended,
@@ -231,81 +254,103 @@ public enum LocalReconciler {
         if sqlite3_errcode(database) != SQLITE_OK && sqlite3_errcode(database) != SQLITE_DONE {
             result.unavailable.formUnion([.codexCLI, .codexDesktop])
         }
+        for index in sessions.indices where sessions[index].status == .ready &&
+            parentsWithActiveSubagents.contains(sessions[index].sessionID) {
+            sessions[index].status = .running
+        }
+        result.sessions += sessions
     }
 
-    private static func codexMetadata(id: String) ->
-        (surface: AgentSurface, projectPath: String?, title: String?)? {
-        let path = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".codex/sqlite/codex-dev.db").path
+    /// Codex deletes a database's -wal and -shm files when it closes it, and a read-only
+    /// connection cannot recreate them. Without a -wal every commit is in the main file,
+    /// so it is read as immutable instead.
+    private static func openCodexDatabase(_ url: URL) -> OpaquePointer? {
+        var components = URLComponents()
+        components.scheme = "file"
+        components.path = url.path
+        components.queryItems = [URLQueryItem(name: "mode", value: "ro")]
+        if !FileManager.default.fileExists(atPath: url.path + "-wal") {
+            components.queryItems?.append(URLQueryItem(name: "immutable", value: "1"))
+        }
         var database: OpaquePointer?
-        guard sqlite3_open_v2(path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
-              let database else { return nil }
-        defer { sqlite3_close(database) }
+        guard let uri = components.string,
+              sqlite3_open_v2(uri, &database, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI | SQLITE_OPEN_FULLMUTEX,
+                              nil) == SQLITE_OK else {
+            sqlite3_close(database)
+            return nil
+        }
+        return database
+    }
+
+    private static func codexMetadata(id: String, in database: OpaquePointer) ->
+        (surface: AgentSurface, projectPath: String?, title: String?, transcript: URL?, parentID: String?)? {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database,
-            "SELECT source_kind,cwd,display_title FROM local_thread_catalog WHERE thread_id=? LIMIT 1", -1,
+            "SELECT source,cwd,name,rollout_path FROM threads WHERE id=? LIMIT 1", -1,
             &statement, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(statement) }
         sqlite3_bind_text(statement, 1, id, -1, unsafeBitCast(-1, to: sqlite3_destructor_type.self))
         guard sqlite3_step(statement) == SQLITE_ROW,
               let value = sqlite3_column_text(statement, 0) else { return nil }
+        let source = String(cString: value)
         let surface: AgentSurface
-        switch String(cString: value) {
-        case "chatgpt", "vscode": surface = .codexDesktop
-        case "cli": surface = .codexCLI
-        default: return nil
+        var parentID: String?
+        switch source {
+        case "vscode", "chatgpt": surface = .codexDesktop
+        case "cli", "exec": surface = .codexCLI
+        default:
+            // Subagents record their origin as {"subagent":{"thread_spawn":{"parent_thread_id":…}}}.
+            let json = (try? JSONSerialization.jsonObject(with: Data(source.utf8))) as? [String: Any]
+            let spawn = (json?["subagent"] as? [String: Any])?["thread_spawn"] as? [String: Any]
+            guard let parent = spawn?["parent_thread_id"] as? String else { return nil }
+            surface = .codexCLI
+            parentID = parent
         }
         let project = sqlite3_column_text(statement, 1).map { String(cString: $0) }
-        let title = sqlite3_column_text(statement, 2).map { String(cString: $0) }
-        return (surface, project, title)
+        let title = sqlite3_column_text(statement, 2).map { String(cString: $0) }.flatMap { $0.isEmpty ? nil : $0 }
+        let transcript = sqlite3_column_text(statement, 3).map { URL(fileURLWithPath: String(cString: $0)) }
+        return (surface, project, title, transcript, parentID)
     }
 
-    private static func codexPendingQuestion(id: String, since: Date) -> String? {
-        if let file = codexTranscriptURL(id: id) {
-            guard let handle = try? FileHandle(forReadingFrom: file) else { return nil }
-            defer { try? handle.close() }
-            let length = (try? handle.seekToEnd()) ?? 0
-            try? handle.seek(toOffset: length > 262_144 ? length - 262_144 : 0)
-            let tail = (try? handle.readToEnd()) ?? Data()
-            var pending = Set<String>()
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            for line in tail.split(separator: 10) {
-                guard let record = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
-                      (record["type"] as? String) == "response_item",
-                      let timestamp = record["timestamp"] as? String,
-                      let date = formatter.date(from: timestamp), date >= since,
-                      let payload = record["payload"] as? [String: Any],
-                      let callID = payload["call_id"] as? String else { continue }
-                switch payload["type"] as? String {
-                case "function_call" where (payload["name"] as? String) == "request_user_input":
-                    pending.insert(callID)
-                case "function_call_output": pending.remove(callID)
-                default: break
-                }
+    private static func codexPendingQuestion(in file: URL, since: Date) -> String? {
+        guard let handle = try? FileHandle(forReadingFrom: file) else { return nil }
+        defer { try? handle.close() }
+        let length = (try? handle.seekToEnd()) ?? 0
+        try? handle.seek(toOffset: length > 262_144 ? length - 262_144 : 0)
+        let tail = (try? handle.readToEnd()) ?? Data()
+        var pending = Set<String>()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        for line in tail.split(separator: 10) {
+            guard let record = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
+                  (record["type"] as? String) == "response_item",
+                  let timestamp = record["timestamp"] as? String,
+                  let date = formatter.date(from: timestamp), date >= since,
+                  let payload = record["payload"] as? [String: Any],
+                  let callID = payload["call_id"] as? String else { continue }
+            switch payload["type"] as? String {
+            case "function_call" where (payload["name"] as? String) == "request_user_input":
+                pending.insert(callID)
+            case "function_call_output": pending.remove(callID)
+            default: break
             }
-            return pending.first
         }
-        return nil
+        return pending.first
     }
 
-    private static func codexTranscriptURL(id: String) -> URL? {
-        let root = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex/sessions")
-        guard let walker = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil,
-                                                          options: [.skipsHiddenFiles]) else { return nil }
-        for case let file as URL in walker where file.lastPathComponent.hasSuffix("-\(id).jsonl") {
-            return file
-        }
-        return nil
-    }
-
+    /// The Codex Desktop app bundles its own `codex` binary, so only one outside an app bundle is the CLI.
     private static func codexCLIProcessExists() -> Bool {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-u", String(getuid()), "-x", "codex"]
-        process.standardOutput = FileHandle.nullDevice
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-x", "-o", "comm="]
+        process.standardOutput = output
         process.standardError = FileHandle.nullDevice
-        do { try process.run(); process.waitUntilExit(); return process.terminationStatus == 0 }
-        catch { return false }
+        do { try process.run() } catch { return false }
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return String(decoding: data, as: UTF8.self).split(separator: "\n").contains { path in
+            (path == "codex" || path.hasSuffix("/codex")) && !path.contains(".app/")
+        }
     }
 }

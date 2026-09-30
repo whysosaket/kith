@@ -36,6 +36,7 @@ public enum HookInstaller {
                                    home: URL = FileManager.default.homeDirectoryForCurrentUser) -> Bool {
         AgentSource.allCases.allSatisfy { source in
             let url = configURL(for: source, home: home)
+            guard FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path) else { return true }
             guard let data = try? Data(contentsOf: url),
                   let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   let hooks = root["hooks"] as? [String: Any] else { return false }
@@ -54,6 +55,8 @@ public enum HookInstaller {
                                home: URL, installing: Bool) throws {
         let url = configURL(for: source, home: home)
         let manager = FileManager.default
+        // Creating an absent agent's folder would make the local scan treat that agent as installed.
+        guard manager.fileExists(atPath: url.deletingLastPathComponent().path) else { return }
         let data = try? Data(contentsOf: url)
         let parsed = data.flatMap { try? JSONSerialization.jsonObject(with: $0) }
         guard data == nil || parsed is [String: Any] else {
@@ -92,11 +95,17 @@ public enum HookInstaller {
         if hooks.isEmpty { root.removeValue(forKey: "hooks") }
         else { root["hooks"] = hooks }
 
-        try manager.createDirectory(at: url.deletingLastPathComponent(),
-                                    withIntermediateDirectories: true)
-        let output = try JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys])
-        try output.write(to: url, options: .atomic)
-        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        // Write through symlinks so dotfile managers keep their link, and keep one pristine backup.
+        let target = url.resolvingSymlinksInPath()
+        let backup = target.appendingPathExtension("kith-backup")
+        if data != nil && !manager.fileExists(atPath: backup.path) {
+            try manager.copyItem(at: target, to: backup)
+        }
+        let permissions = (try? manager.attributesOfItem(atPath: target.path))?[.posixPermissions] ?? 0o600
+        let output = try JSONSerialization.data(withJSONObject: root,
+                                                options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+        try output.write(to: target, options: .atomic)
+        try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: target.path)
     }
 
     private static func configURL(for source: AgentSource, home: URL) -> URL {

@@ -12,9 +12,9 @@ public enum CodexAXProbe {
 
     /// Returns nil when Accessibility cannot inspect the Desktop app.
     public static func hasInteractivePrompt() -> Bool? {
-        guard trusted else { return nil }
         guard let application = NSRunningApplication.runningApplications(
             withBundleIdentifier: "com.openai.codex").first else { return false }
+        guard trusted else { return nil }
         let root = AXUIElementCreateApplication(application.processIdentifier)
         var windows: CFTypeRef?
         guard AXUIElementCopyAttributeValue(root, kAXWindowsAttribute as CFString, &windows) == .success,

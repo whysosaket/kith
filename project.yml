@@ -1,6 +1,6 @@
 name: Kith
 options:
-  bundleIdPrefix: dev.kith
+  bundleIdPrefix: app.trykith
   deploymentTarget:
     macOS: "14.0"
 settings:
@@ -10,6 +10,7 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     OTHER_LDFLAGS: "$(inherited) -lsqlite3"
     ENABLE_APP_SANDBOX: NO
+    ENABLE_HARDENED_RUNTIME: YES
 targets:
   KithCore:
     type: library.static
@@ -17,7 +18,7 @@ targets:
     sources: [Sources/KithCore]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.core
+        PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith.core
         DEFINES_MODULE: YES
   KithEvent:
     type: tool
@@ -28,7 +29,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: kith-event
-        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.event
+        PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith.event
   KithPowerHelper:
     type: tool
     platform: macOS
@@ -37,7 +38,7 @@ targets:
       - target: KithCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.power
+        PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith.power
   KithApp:
     type: application
     platform: macOS
@@ -49,6 +50,7 @@ targets:
         CFBundleIconFile: Kith.icns
         CFBundleShortVersionString: 0.1.0
         LSUIElement: true
+        NSAppleEventsUsageDescription: Kith brings the terminal tab running a session to the front when you open it.
         NSHighResolutionCapable: true
     dependencies:
       - target: KithCore
@@ -68,7 +70,7 @@ targets:
       - name: Embed privileged daemon plist
         script: |
           mkdir -p "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons"
-          cp "${SRCROOT}/Resources/dev.kith.power.plist" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons/dev.kith.power.plist"
+          cp "${SRCROOT}/Resources/app.trykith.kith.power.plist" "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons/app.trykith.kith.power.plist"
       - name: Embed app and menu bar icons
         script: |
           mkdir -p "${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Resources"
@@ -76,8 +78,9 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Kith
-        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.app
+        PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith
         GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: Resources/Kith.entitlements
         CODE_SIGN_STYLE: Automatic
         CODE_SIGNING_ALLOWED: YES
   KithCoreTests:
@@ -88,4 +91,4 @@ targets:
       - target: KithCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.kith.coretests
+        PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith.coretests

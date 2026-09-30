@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00C09C39193065EDEDE47AEB /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A78B66F29F08E245271646 /* main.swift */; };
 		039369A74702CE5CB99E66C5 /* AgentEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B05B8AE7E93C6E6923F9E5 /* AgentEvent.swift */; };
+		0E6843CE2905991FE42F8EA5 /* TerminalTabScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBDA5412109E3329AD054C22 /* TerminalTabScript.swift */; };
 		0FCC0FD5E240B7D9C54F8D66 /* libKithCore.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5575DA1374A65D754D194E05 /* libKithCore.a */; };
 		13CE7EAB77FE98E2F6FA51D2 /* CodexAXProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57F6BC2AC6E9A38438E87E76 /* CodexAXProbe.swift */; };
 		164221DA5E8FEF3C064587F5 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1C0841B051A0A4CF4F8AA4 /* SessionStore.swift */; };
@@ -18,6 +19,7 @@
 		43A12DD198B477F60DE857E4 /* PowerProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */; };
 		4C0D3915D2BA04C32AD050DD /* KithWorkspaceWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA647E7F9CCC5C7CCE3FF412 /* KithWorkspaceWindow.swift */; };
 		4C5ED5B442A85B823726212F /* KithPowerHelper in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = 449E91CBD887C292BE06D36E /* KithPowerHelper */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		4E2DCC39F52C901118A355AE /* LocalReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A71105EA167F97640B8C35E /* LocalReconcilerTests.swift */; };
 		52403F1036F92297DDE3CA87 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE4D902344ABE6BA9FFA3054 /* main.swift */; };
 		58A6B599D2CC3AEE3313DB27 /* KithPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96343F71A51B453F06773E7 /* KithPaths.swift */; };
 		591E2B34123174AD9A2A2F63 /* PowerClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */; };
@@ -104,6 +106,7 @@
 		093BCDF0FE2F82258D1A28E0 /* KithCoreTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = KithCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		161B85EB63D123A4422F18C2 /* KithSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithSettings.swift; sourceTree = "<group>"; };
 		31D1D27C17AF17B2883E4ABF /* PowerProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerProtocol.swift; sourceTree = "<group>"; };
+		3A71105EA167F97640B8C35E /* LocalReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalReconcilerTests.swift; sourceTree = "<group>"; };
 		449E91CBD887C292BE06D36E /* KithPowerHelper */ = {isa = PBXFileReference; includeInIndex = 0; path = KithPowerHelper; sourceTree = BUILT_PRODUCTS_DIR; };
 		45F0AAAFBD58A494DD3CF070 /* EventSpool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventSpool.swift; sourceTree = "<group>"; };
 		510BA1ED365DA746BBBE22DF /* LocalReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalReconciler.swift; sourceTree = "<group>"; };
@@ -125,6 +128,7 @@
 		D87EBE8B193177BD88E6B25D /* KithMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithMenu.swift; sourceTree = "<group>"; };
 		D9D769764EC99C493D22AD85 /* SessionPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPresentation.swift; sourceTree = "<group>"; };
 		DA647E7F9CCC5C7CCE3FF412 /* KithWorkspaceWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KithWorkspaceWindow.swift; sourceTree = "<group>"; };
+		DBDA5412109E3329AD054C22 /* TerminalTabScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTabScript.swift; sourceTree = "<group>"; };
 		DE4D902344ABE6BA9FFA3054 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		DEF3DAD8D1E3E0F3433C8D70 /* EventParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventParser.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -198,6 +202,7 @@
 		C1BA66230AAF4E8FA087C9D8 /* KithCoreTests */ = {
 			isa = PBXGroup;
 			children = (
+				3A71105EA167F97640B8C35E /* LocalReconcilerTests.swift */,
 				968C6A3FEFF1C783994EE1E9 /* SessionSafetyTests.swift */,
 			);
 			name = KithCoreTests;
@@ -235,6 +240,7 @@
 				C28D557EBACBB0E5D60DBBD3 /* NotificationRouter.swift */,
 				B4AE26AD18558F4BB0F811A6 /* PowerClient.swift */,
 				D9D769764EC99C493D22AD85 /* SessionPresentation.swift */,
+				DBDA5412109E3329AD054C22 /* TerminalTabScript.swift */,
 			);
 			name = KithApp;
 			path = Sources/KithApp;
@@ -408,7 +414,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons\"\ncp \"${SRCROOT}/Resources/dev.kith.power.plist\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons/dev.kith.power.plist\"\n";
+			shellScript = "mkdir -p \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons\"\ncp \"${SRCROOT}/Resources/app.trykith.kith.power.plist\" \"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Contents/Library/LaunchDaemons/app.trykith.kith.power.plist\"\n";
 		};
 		922C439C36EFE46EDC7206DA /* Embed app and menu bar icons */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -468,6 +474,7 @@
 				87CBFB80F665E586E721D55F /* NotificationRouter.swift in Sources */,
 				591E2B34123174AD9A2A2F63 /* PowerClient.swift in Sources */,
 				C57E47038A44EFEC7634F04E /* SessionPresentation.swift in Sources */,
+				0E6843CE2905991FE42F8EA5 /* TerminalTabScript.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -501,6 +508,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4E2DCC39F52C901118A355AE /* LocalReconcilerTests.swift in Sources */,
 				A3650CF8340A0BC90BBAE6A0 /* SessionSafetyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -555,7 +563,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.coretests;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.coretests;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -596,6 +604,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -631,6 +640,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/Kith.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -643,7 +653,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.app;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith;
 				PRODUCT_NAME = Kith;
 				SDKROOT = macosx;
 			};
@@ -661,7 +671,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.event;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.event;
 				PRODUCT_NAME = "kith-event";
 				SDKROOT = macosx;
 			};
@@ -679,7 +689,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.power;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.power;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -696,7 +706,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.power;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.power;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -710,7 +720,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.core;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.core;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -730,7 +740,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.coretests;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.coretests;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -740,6 +750,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = YES;
+				CODE_SIGN_ENTITLEMENTS = Resources/Kith.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -752,7 +763,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.app;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith;
 				PRODUCT_NAME = Kith;
 				SDKROOT = macosx;
 			};
@@ -794,6 +805,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -826,7 +838,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.core;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.core;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 			};
@@ -844,7 +856,7 @@
 					"$(inherited)",
 					"-ObjC",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = dev.kith.event;
+				PRODUCT_BUNDLE_IDENTIFIER = app.trykith.kith.event;
 				PRODUCT_NAME = "kith-event";
 				SDKROOT = macosx;
 			};
