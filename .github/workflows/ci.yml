@@ -14,8 +14,8 @@ jobs:
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
       - name: Test
         run: scripts/test.sh
-      - name: Build app
-        run: scripts/build-app.sh
+      - name: Package universal app
+        run: scripts/package-release.sh
       - name: Check Xcode project matches project.yml
         run: |
           brew install xcodegen

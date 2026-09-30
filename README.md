@@ -19,9 +19,15 @@ Kith never reports work as finished while it can't confirm a session's state. Mo
 
 Kith builds for your Mac's architecture. It is developed and tested on Apple Silicon.
 
-## Install from source
+## Download
 
-There are no prebuilt downloads yet.
+[Download Kith for macOS](https://github.com/whysosaket/kith/releases/latest/download/Kith-macOS-universal.zip) (Apple Silicon and Intel), unzip it, and move `Kith.app` to `/Applications` before opening it. The [latest release](https://github.com/whysosaket/kith/releases/latest) also includes a SHA-256 checksum.
+
+This download is not yet notarized. If macOS blocks the first launch, try opening Kith once, then go to **System Settings → Privacy & Security → Open Anyway**. [Apple explains this step](https://support.apple.com/102445). Only do this for a download you trust from this repository.
+
+The download is ad hoc signed, so its optional closed-lid power helper cannot connect. Session monitoring, notifications and idle-sleep holding work. To use the helper, [build from source](#install-from-source) with a local signing identity.
+
+## Install from source
 
 ```sh
 git clone https://github.com/whysosaket/kith.git
@@ -48,7 +54,7 @@ The closed-lid helper only accepts a Kith app signed like the helper: by the sam
 2. **Notifications.** Allow Kith in System Settings → Notifications, including sounds. Kith warns you in the panel when macOS disables either.
 3. **Accessibility (optional, Codex Desktop only).** Codex Desktop doesn't report every prompt through hooks. With Accessibility access, Kith reads the **button titles** in Codex Desktop windows, such as "Approve" and "Deny", to tell when it's waiting for you. It reads nothing else and no other app.
 4. **Automation (optional, Terminal and iTerm2).** The first time you open a CLI session, macOS asks whether Kith may control your terminal. Allow it and Kith brings that session's own window and tab to the front. Without it, Kith only switches to the terminal app. Other terminals always get the app only.
-5. **Power helper (optional).** Settings → Power → enable the helper and approve it under System Settings → General → Login Items & Extensions. See [Power and safety](#power-and-safety).
+5. **Power helper (optional, signed source builds only).** Settings → Power → enable the helper and approve it under System Settings → General → Login Items & Extensions. See [Power and safety](#power-and-safety).
 
 ## How it works
 
@@ -107,6 +113,7 @@ When one of these changes, Kith marks that surface **unavailable**, blocks finis
 ```sh
 scripts/test.sh        # unit tests (Swift Testing) + core smoke checks
 scripts/build-app.sh   # app bundle in dist/
+scripts/package-release.sh # universal app ZIP and SHA-256 checksum in dist/
 xcodegen generate      # regenerate Kith.xcodeproj after editing project.yml
 ```
 

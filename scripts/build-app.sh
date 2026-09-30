@@ -7,6 +7,18 @@ cd "$repo_root"
 swift build -c release
 
 binary_dir="$(swift build -c release --show-bin-path)"
+if [[ "${KITH_UNIVERSAL:-0}" == "1" ]]; then
+    case "$(uname -m)" in
+        arm64) other_arch=x86_64 ;;
+        x86_64) other_arch=arm64 ;;
+        *) echo "Unsupported Mac architecture" >&2; exit 1 ;;
+    esac
+    cross_build_path="$repo_root/.build/release-$other_arch"
+    swift build -c release --triple "$other_arch-apple-macosx14.0" --scratch-path "$cross_build_path"
+    other_binary_dir="$(swift build -c release --triple "$other_arch-apple-macosx14.0" \
+        --scratch-path "$cross_build_path" --show-bin-path)"
+fi
+
 app_dir="$repo_root/dist/Kith.app"
 rm -rf "$app_dir"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources" "$app_dir/Contents/Library/LaunchDaemons"
@@ -22,6 +34,14 @@ plutil -replace NSHighResolutionCapable -bool YES "$app_dir/Contents/Info.plist"
 cp "Resources/$bundle_id.power.plist" "$app_dir/Contents/Library/LaunchDaemons/"
 cp Resources/Kith.icns Resources/KithMenuBarTemplate.png "$app_dir/Contents/Resources/"
 cp "$binary_dir/KithApp" "$binary_dir/kith-event" "$binary_dir/KithPowerHelper" "$app_dir/Contents/MacOS/"
+if [[ "${KITH_UNIVERSAL:-0}" == "1" ]]; then
+    for executable in KithApp kith-event KithPowerHelper; do
+        lipo -create "$app_dir/Contents/MacOS/$executable" "$other_binary_dir/$executable" \
+            -output "$app_dir/Contents/MacOS/$executable.universal"
+        mv "$app_dir/Contents/MacOS/$executable.universal" "$app_dir/Contents/MacOS/$executable"
+        lipo "$app_dir/Contents/MacOS/$executable" -verify_arch arm64 x86_64
+    done
+fi
 
 # Hardened runtime blocks library injection into Kith and its root helper.
 # Only Apple-issued identities (KITH_SIGN_IDENTITY) can use Apple's secure timestamp.
