@@ -21,7 +21,7 @@ Kith builds for your Mac's architecture. It is developed and tested on Apple Sil
 
 ## Download
 
-[Download Kith for macOS](https://github.com/whysosaket/kith/releases/latest/download/Kith-macOS-universal.zip) (Apple Silicon and Intel), unzip it, and move `Kith.app` to `/Applications` before opening it. The [latest release](https://github.com/whysosaket/kith/releases/latest) also includes a SHA-256 checksum.
+[Download Kith for macOS](https://github.com/whysosaket/kith/releases/latest/download/Kith-macOS-universal.dmg) (Apple Silicon and Intel). Open the DMG, drag `Kith.app` to the Applications shortcut, eject the disk image, then open Kith from `/Applications`. A [ZIP download](https://github.com/whysosaket/kith/releases/latest/download/Kith-macOS-universal.zip) and SHA-256 checksums are also on the [latest release](https://github.com/whysosaket/kith/releases/latest).
 
 This download is not yet notarized. If macOS blocks the first launch, try opening Kith once, then go to **System Settings → Privacy & Security → Open Anyway**. [Apple explains this step](https://support.apple.com/102445). Only do this for a download you trust from this repository.
 
@@ -113,7 +113,7 @@ When one of these changes, Kith marks that surface **unavailable**, blocks finis
 ```sh
 scripts/test.sh        # unit tests (Swift Testing) + core smoke checks
 scripts/build-app.sh   # app bundle in dist/
-scripts/package-release.sh # universal app ZIP and SHA-256 checksum in dist/
+scripts/package-release.sh # universal app DMG, ZIP and checksums in dist/
 xcodegen generate      # regenerate Kith.xcodeproj after editing project.yml
 ```
 
