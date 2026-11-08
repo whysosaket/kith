@@ -359,12 +359,9 @@ public enum LocalReconciler {
             proc_listpids(UInt32(PROC_UID_ONLY), getuid(), $0.baseAddress, Int32($0.count))
         }
         guard bytes > 0 else { return false }
-        var name = [UInt8](repeating: 0, count: Int(MAXCOMLEN) + 1)
         var path = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
         for pid in pids.prefix(Int(bytes) / MemoryLayout<pid_t>.size) where pid > 0 {
-            guard proc_name(pid, &name, UInt32(name.count)) > 0,
-                  String(decoding: name.prefix { $0 != 0 }, as: UTF8.self) == "codex",
-                  proc_pidpath(pid, &path, UInt32(path.count)) > 0 else { continue }
+            guard proc_pidpath(pid, &path, UInt32(path.count)) > 0 else { continue }
             let executable = String(decoding: path.prefix { $0 != 0 }, as: UTF8.self)
             if executable.hasSuffix("/codex") && !executable.contains(".app/") { return true }
         }
