@@ -40,6 +40,8 @@ public enum LocalReconciler {
         let home: URL
         private lazy var index = claudeTranscriptIndex(home: home)
 
+        init(home: URL) { self.home = home }
+
         mutating func state(sessionID: String) -> (status: SessionStatus, modifiedAt: Date?) {
             claudeTranscriptState(sessionID: sessionID, index: index)
         }
