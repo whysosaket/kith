@@ -2,6 +2,7 @@ import Foundation
 
 public struct SessionStore: Sendable {
     public private(set) var sessions: [String: AgentSession] = [:]
+    public private(set) var revision: UInt64 = 0
     private var seenEvents: Set<UUID> = []
 
     public init() {}
@@ -52,6 +53,7 @@ public struct SessionStore: Sendable {
     public mutating func apply(_ event: AgentEvent, surface: AgentSurface) -> SessionStatus? {
         guard event.schemaVersion == 1, seenEvents.insert(event.id).inserted else { return nil }
         if seenEvents.count > 2_000 { seenEvents = [event.id] }
+        revision &+= 1
         let key = "\(event.source.rawValue):\(event.sessionID)"
         var session = sessions[key] ?? AgentSession(source: event.source, surface: surface,
                                                     sessionID: event.sessionID)
@@ -125,7 +127,10 @@ public struct SessionStore: Sendable {
                 result.status = .failed
             }
         }
-        sessions[observed.id] = result
+        if old != result {
+            sessions[observed.id] = result
+            revision &+= 1
+        }
         return old?.status != result.status ? result.status : nil
     }
 
@@ -135,7 +140,14 @@ public struct SessionStore: Sendable {
             session.status = .unavailable
             session.stopCandidate = false
             sessions[key] = session
+            revision &+= 1
         }
+    }
+
+    public mutating func pruneCompleted(olderThan date: Date) {
+        guard sessions.values.contains(where: { $0.status == .ready && $0.lastActivity <= date }) else { return }
+        sessions = sessions.filter { $0.value.status != .ready || $0.value.lastActivity > date }
+        revision &+= 1
     }
 
     public var allSafeToFinish: Bool {

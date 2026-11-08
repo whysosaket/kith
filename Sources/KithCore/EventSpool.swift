@@ -23,16 +23,27 @@ public enum EventSpool {
     }
 
     public static func drain(_ consume: (AgentEvent) -> Void) {
+        for entry in pending() {
+            consume(entry.event)
+            try? FileManager.default.removeItem(at: entry.file)
+        }
+    }
+
+    public static func pending(in directory: URL = KithPaths.spool) -> [(file: URL, event: AgentEvent)] {
         guard let files = try? FileManager.default.contentsOfDirectory(
-            at: KithPaths.spool, includingPropertiesForKeys: nil)
+            at: directory, includingPropertiesForKeys: nil)
             .filter({ $0.pathExtension == "json" }).sorted(by: { $0.lastPathComponent < $1.lastPathComponent })
-        else { return }
+        else { return [] }
+        var result: [(file: URL, event: AgentEvent)] = []
         for file in files.prefix(1000) {
-            defer { try? FileManager.default.removeItem(at: file) }
             guard let data = try? Data(contentsOf: file),
                   let event = try? JSONDecoder().decode(AgentEvent.self, from: data),
-                  event.schemaVersion == 1 else { continue }
-            consume(event)
+                  event.schemaVersion == 1 else {
+                try? FileManager.default.removeItem(at: file)
+                continue
+            }
+            result.append((file, event))
         }
+        return result
     }
 }

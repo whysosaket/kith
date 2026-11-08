@@ -17,8 +17,9 @@ public enum LocalReconciler {
     public static func scan(now: Date = Date(),
                             home: URL = FileManager.default.homeDirectoryForCurrentUser) -> ReconcileResult {
         var result = ReconcileResult()
-        scanClaudeCLI(into: &result, now: now, home: home)
-        scanClaudeDesktop(into: &result, now: now, home: home)
+        var transcripts = ClaudeTranscripts(home: home)
+        scanClaudeCLI(into: &result, now: now, home: home, transcripts: &transcripts)
+        scanClaudeDesktop(into: &result, now: now, home: home, transcripts: &transcripts)
         scanCodex(into: &result, now: now, home: home)
         switch CodexAXProbe.hasInteractivePrompt() {
         case .none:
@@ -35,7 +36,19 @@ public enum LocalReconciler {
         return result
     }
 
-    private static func scanClaudeCLI(into result: inout ReconcileResult, now: Date, home: URL) {
+    private struct ClaudeTranscripts {
+        let home: URL
+        private lazy var index = claudeTranscriptIndex(home: home)
+
+        init(home: URL) { self.home = home }
+
+        mutating func state(sessionID: String) -> (status: SessionStatus, modifiedAt: Date?) {
+            claudeTranscriptState(sessionID: sessionID, index: index)
+        }
+    }
+
+    private static func scanClaudeCLI(into result: inout ReconcileResult, now: Date, home: URL,
+                                      transcripts: inout ClaudeTranscripts) {
         let root = home.appendingPathComponent(".claude")
         guard FileManager.default.fileExists(atPath: root.path) else { return }
         let directory = root.appendingPathComponent("sessions")
@@ -61,7 +74,7 @@ public enum LocalReconciler {
             let state: SessionStatus
             var attentionID: String?
             if (status == "busy" || status == "waiting") && !processAlive {
-                state = claudeTranscriptState(sessionID: id, home: home).status == .ready ? .ready : .unavailable
+                state = transcripts.state(sessionID: id).status == .ready ? .ready : .unavailable
             } else if status == "busy" { state = .running }
             else if status == "waiting" {
                 // Claude is blocked on the user; the question: prefix lets a later busy scan clear it,
@@ -71,7 +84,7 @@ public enum LocalReconciler {
             }
             else if status == "idle" { state = .ready }
             else if status == "shell" {
-                state = claudeTranscriptState(sessionID: id, home: home).status == .ready ? .ready : .unavailable
+                state = transcripts.state(sessionID: id).status == .ready ? .ready : .unavailable
             }
             else { state = .unavailable }
             let terminal = processAlive ? TerminalLocator.locate(startingAt: Int32(pid)) : nil
@@ -83,7 +96,8 @@ public enum LocalReconciler {
         }
     }
 
-    private static func scanClaudeDesktop(into result: inout ReconcileResult, now: Date, home: URL) {
+    private static func scanClaudeDesktop(into result: inout ReconcileResult, now: Date, home: URL,
+                                          transcripts: inout ClaudeTranscripts) {
         let root = home.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions")
         guard let walker = FileManager.default.enumerator(at: root,
             includingPropertiesForKeys: [.contentModificationDateKey], options: [.skipsHiddenFiles]) else {
@@ -92,7 +106,6 @@ public enum LocalReconciler {
         }
         guard !NSRunningApplication.runningApplications(
             withBundleIdentifier: "com.anthropic.claudefordesktop").isEmpty else { return }
-        let transcripts = claudeTranscriptIndex(home: home)
         for case let file as URL in walker where file.lastPathComponent.hasPrefix("local_") &&
             file.pathExtension == "json" {
             guard let values = try? file.resourceValues(forKeys: [.contentModificationDateKey]),
@@ -105,7 +118,7 @@ public enum LocalReconciler {
                 continue
             }
             guard (json["isArchived"] as? Bool) != true else { continue }
-            let transcript = claudeTranscriptState(sessionID: id, index: transcripts)
+            let transcript = transcripts.state(sessionID: id)
             let activity = (json["lastActivityAt"] as? Double).map {
                 Date(timeIntervalSince1970: $0 > 1_000_000_000_000 ? $0 / 1000 : $0)
             } ?? modified
@@ -121,11 +134,6 @@ public enum LocalReconciler {
                 title: json["title"] as? String, status: transcript.status,
                 lastActivity: latest))
         }
-    }
-
-    private static func claudeTranscriptState(sessionID: String, home: URL) ->
-        (status: SessionStatus, modifiedAt: Date?) {
-        claudeTranscriptState(sessionID: sessionID, index: claudeTranscriptIndex(home: home))
     }
 
     private static func claudeTranscriptIndex(home: URL) -> [String: URL] {
@@ -163,12 +171,16 @@ public enum LocalReconciler {
     private static func scanCodex(into result: inout ReconcileResult, now: Date, home: URL) {
         let root = home.appendingPathComponent(".codex")
         guard FileManager.default.fileExists(atPath: root.path) else { return }
-        guard let database = openCodexDatabase(root.appendingPathComponent("thread_history_1.sqlite")),
-              let threads = openCodexDatabase(root.appendingPathComponent("state_5.sqlite")) else {
+        guard let database = openCodexDatabase(root.appendingPathComponent("thread_history_1.sqlite")) else {
             result.unavailable.formUnion([.codexCLI, .codexDesktop])
             return
         }
-        defer { sqlite3_close(database); sqlite3_close(threads) }
+        defer { sqlite3_close(database) }
+        guard let threads = openCodexDatabase(root.appendingPathComponent("state_5.sqlite")) else {
+            result.unavailable.formUnion([.codexCLI, .codexDesktop])
+            return
+        }
+        defer { sqlite3_close(threads) }
         let query = """
             SELECT t.thread_id,t.turn_id,t.status,t.started_at,t.completed_at
             FROM thread_turns t JOIN (
@@ -340,17 +352,19 @@ public enum LocalReconciler {
 
     /// The Codex Desktop app bundles its own `codex` binary, so only one outside an app bundle is the CLI.
     private static func codexCLIProcessExists() -> Bool {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        process.arguments = ["-x", "-o", "comm="]
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        do { try process.run() } catch { return false }
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return String(decoding: data, as: UTF8.self).split(separator: "\n").contains { path in
-            (path == "codex" || path.hasSuffix("/codex")) && !path.contains(".app/")
+        let size = proc_listpids(UInt32(PROC_UID_ONLY), getuid(), nil, 0)
+        guard size > 0 else { return false }
+        var pids = [pid_t](repeating: 0, count: Int(size) / MemoryLayout<pid_t>.size + 32)
+        let bytes = pids.withUnsafeMutableBytes {
+            proc_listpids(UInt32(PROC_UID_ONLY), getuid(), $0.baseAddress, Int32($0.count))
         }
+        guard bytes > 0 else { return false }
+        var path = [UInt8](repeating: 0, count: 4 * Int(MAXPATHLEN))
+        for pid in pids.prefix(Int(bytes) / MemoryLayout<pid_t>.size) where pid > 0 {
+            guard proc_pidpath(pid, &path, UInt32(path.count)) > 0 else { continue }
+            let executable = String(decoding: path.prefix { $0 != 0 }, as: UTF8.self)
+            if executable.hasSuffix("/codex") && !executable.contains(".app/") { return true }
+        }
+        return false
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import SQLite3
 import Testing
 @testable import KithCore
@@ -6,6 +7,52 @@ import Testing
 struct LocalReconcilerTests {
     private let home = FileManager.default.temporaryDirectory
         .appendingPathComponent("kith-home-\(UUID().uuidString)")
+
+    @Test func missingSecondDatabaseDoesNotLeakFirstDatabase() throws {
+        let now = Date()
+        try makeCodexHome(now: now, turns: [], threads: [])
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.removeItem(at: home.appendingPathComponent(".codex/state_5.sqlite"))
+        for _ in 0..<20 {
+            let result = LocalReconciler.scan(now: now, home: home)
+            #expect(result.unavailable.contains(.codexCLI))
+            #expect(result.unavailable.contains(.codexDesktop))
+        }
+        let databasePath = home.appendingPathComponent(".codex/thread_history_1.sqlite")
+            .resolvingSymlinksInPath().path
+        var buffer = [UInt8](repeating: 0, count: Int(MAXPATHLEN))
+        for descriptor in 0..<getdtablesize() where fcntl(descriptor, F_GETFD) != -1 {
+            if fcntl(descriptor, F_GETPATH, &buffer) != -1 {
+                #expect(String(decoding: buffer.prefix { $0 != 0 }, as: UTF8.self) != databasePath)
+            }
+        }
+    }
+
+    @Test func sharedTranscriptIndexRefreshesOnEachScan() throws {
+        let sessions = home.appendingPathComponent(".claude/sessions")
+        let projects = home.appendingPathComponent(".claude/projects/project")
+        for url in [sessions, projects] {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        }
+        defer { try? FileManager.default.removeItem(at: home) }
+        let now = Date()
+        for id in ["first", "second"] {
+            let data = try JSONSerialization.data(withJSONObject: [
+                "sessionId": id, "status": "shell", "pid": -1, "updatedAt": now.timeIntervalSince1970
+            ])
+            try data.write(to: sessions.appendingPathComponent("\(id).json"))
+        }
+        let transcript = Data(#"{"type":"assistant","message":{"stop_reason":"end_turn"}}"#.utf8)
+        try transcript.write(to: projects.appendingPathComponent("first.jsonl"))
+        let before = LocalReconciler.scan(now: now, home: home)
+        #expect(before.sessions.first { $0.sessionID == "first" }?.status == .ready)
+        #expect(before.sessions.first { $0.sessionID == "second" }?.status == .unavailable)
+        try transcript.write(to: projects.appendingPathComponent("second.jsonl"))
+        try Data(#"{"type":"user"}"#.utf8).write(to: projects.appendingPathComponent("first.jsonl"))
+        let after = LocalReconciler.scan(now: now, home: home)
+        #expect(after.sessions.first { $0.sessionID == "first" }?.status == .unavailable)
+        #expect(after.sessions.first { $0.sessionID == "second" }?.status == .ready)
+    }
 
     @Test func missingAgentsAreNotMonitoringFailures() throws {
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
