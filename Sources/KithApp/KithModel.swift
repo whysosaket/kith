@@ -85,6 +85,15 @@ final class KithModel: ObservableObject {
     private var eventSocket: EventSocket?
     private var notificationRouter: NotificationRouter?
     private let notifier = UNUserNotificationCenter.current()
+    private let persistenceQueue = DispatchQueue(label: "app.trykith.kith.persistence", qos: .utility)
+    private var persistenceTask: Task<Void, Never>?
+    private var refreshTask: Task<Void, Never>?
+    private var publishedStoreRevision: UInt64?
+    private var savedStoreRevision: UInt64?
+    private var notificationRevision: UInt64 = 0
+    private var savedNotificationRevision: UInt64 = 0
+    private var pendingSpoolFiles: Set<URL> = []
+    private var terminationObserver: AnyCancellable?
 
     init() {
         let defaults = UserDefaults.standard
@@ -114,6 +123,10 @@ final class KithModel: ObservableObject {
         eventSocket = try? EventSocket.listen { [weak self] event in
             Task { @MainActor in self?.accept(event) }
         }
+        terminationObserver = NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
+            .sink { [weak self] _ in
+                MainActor.assumeIsolated { self?.flushState() }
+            }
         tick()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
@@ -130,6 +143,9 @@ final class KithModel: ObservableObject {
     var attentionCount: Int { needsInputCount + failedCount }
     var monitoringReady: Bool { bootstrapComplete }
     var hasMonitoringIssue: Bool { !hooksInstalled || !unavailable.isEmpty }
+    private var hasWork: Bool {
+        store.sessions.values.contains { $0.status == .running || $0.status == .needsInput }
+    }
     var powerSummary: String {
         if closedLidReady {
             return externalWakeOwner ? "External closed-lid hold detected" : "Closed-lid hold active"
@@ -239,7 +255,7 @@ final class KithModel: ObservableObject {
         armedAt = Date()
         let id = UUID()
         armedID = id
-        sawWorkWhileArmed = sessions.contains { $0.status == .running || $0.status == .needsInput }
+        sawWorkWhileArmed = hasWork
         countdownEnd = nil
         countdown = nil
         power.checkHelper { [weak self] success, response in
@@ -328,19 +344,22 @@ final class KithModel: ObservableObject {
     private func tick() {
         let installed = HookInstaller.isInstalled(executable: eventExecutable)
         if hooksInstalled != installed { hooksInstalled = installed }
-        accessibilityEnabled = CodexAXProbe.trusted
-        closedLidReady = power.closedLidReady
-        externalWakeOwner = power.externalWakeOwner
+        let trusted = CodexAXProbe.trusted
+        if accessibilityEnabled != trusted { accessibilityEnabled = trusted }
+        if closedLidReady != power.closedLidReady { closedLidReady = power.closedLidReady }
+        if externalWakeOwner != power.externalWakeOwner { externalWakeOwner = power.externalWakeOwner }
         if Date().timeIntervalSince(lastNotificationCheck) >= 30 {
             lastNotificationCheck = Date()
             refreshNotificationStatus()
         }
-        EventSpool.drain { event in accept(event) }
         if !scanning {
             scanning = true
             DispatchQueue.global(qos: .utility).async {
+                let pending = EventSpool.pending()
                 let result = LocalReconciler.scan()
                 Task { @MainActor in
+                    self.pendingSpoolFiles.formUnion(pending.map { $0.file })
+                    self.applyEvents(pending.map { $0.event })
                     self.scanning = false
                     self.applyScan(result)
                 }
@@ -359,22 +378,36 @@ final class KithModel: ObservableObject {
             } else {
                 issue = nil
             }
-            Task { @MainActor in self?.notificationIssue = issue }
+            Task { @MainActor in
+                if self?.notificationIssue != issue { self?.notificationIssue = issue }
+            }
         }
     }
 
     private func accept(_ event: AgentEvent) {
-        let surface = surfaceForEvent(event)
-        if let status = store.apply(event, surface: surface), bootstrapComplete {
-            emitNotification(for: event, status: status)
+        applyEvents([event])
+        guard refreshTask == nil else { return }
+        // Apply safety state immediately, then publish a socket burst together on the next frame.
+        refreshTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(16))
+            guard let self, !Task.isCancelled else { return }
+            self.refreshTask = nil
+            self.refreshSessions()
+            self.updatePowerAndAction()
         }
-        sessions = store.sessions.values.sorted { $0.lastActivity > $1.lastActivity }
-        try? store.save(to: KithPaths.sessionState)
-        updatePowerAndAction()
+    }
+
+    private func applyEvents(_ events: [AgentEvent]) {
+        for event in events {
+            let status = store.apply(event, surface: surfaceForEvent(event))
+            let session = store.sessions["\(event.source.rawValue):\(event.sessionID)"]
+            if session?.status == .running || session?.status == .needsInput { recordWork() }
+            if let status, bootstrapComplete { emitNotification(for: event, status: status) }
+        }
     }
 
     private func applyScan(_ result: ReconcileResult) {
-        unavailable = result.unavailable
+        var unavailable = result.unavailable
         if !hooksInstalled { unavailable.formUnion(AgentSurface.allCases) }
         for observed in result.sessions {
             guard let status = store.reconcile(observed) else { continue }
@@ -393,16 +426,91 @@ final class KithModel: ObservableObject {
         store.markMissing(seenIDs: Set(result.sessions.map(\.id)),
                           olderThan: Date().addingTimeInterval(-10))
         unavailable.formUnion(store.sessions.values.filter { $0.status == .unavailable }.map(\.surface))
+        if self.unavailable != unavailable { self.unavailable = unavailable }
         if armedAction != nil && !unavailable.isEmpty {
             cancelAction()
             message = "A session monitor became unavailable"
             notify(title: "Kith canceled power action", body: "A session monitor became unavailable",
                    sound: true, id: "action-error-\(UUID().uuidString)")
         }
-        sessions = store.sessions.values.sorted { $0.lastActivity > $1.lastActivity }
-        try? store.save(to: KithPaths.sessionState)
+        refreshSessions()
         bootstrapComplete = true
         updatePowerAndAction()
+    }
+
+    private func refreshSessions() {
+        store.pruneCompleted(olderThan: Date().addingTimeInterval(-86_400))
+        if publishedStoreRevision != store.revision {
+            let updated = store.sessions.values.sorted { $0.lastActivity > $1.lastActivity }
+            if sessions != updated { sessions = updated }
+            publishedStoreRevision = store.revision
+        }
+        schedulePersistence()
+    }
+
+    private func schedulePersistence() {
+        guard persistenceTask == nil,
+              savedStoreRevision != store.revision || savedNotificationRevision != notificationRevision ||
+                !pendingSpoolFiles.isEmpty else { return }
+        persistenceTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard let self, !Task.isCancelled else { return }
+            let snapshot = self.store
+            let ids = self.notifiedIDs
+            let notificationRevision = self.notificationRevision
+            let spoolFiles = self.pendingSpoolFiles
+            let saveSessions = self.savedStoreRevision != snapshot.revision
+            let saveNotifications = self.savedNotificationRevision != notificationRevision
+            let saved = await withCheckedContinuation { continuation in
+                self.persistenceQueue.async {
+                    continuation.resume(returning: Self.writeState(snapshot, notifiedIDs: ids,
+                        saveSessions: saveSessions, saveNotifications: saveNotifications, spoolFiles: spoolFiles))
+                }
+            }
+            if saved {
+                self.savedStoreRevision = snapshot.revision
+                self.savedNotificationRevision = notificationRevision
+                self.pendingSpoolFiles.subtract(spoolFiles)
+            }
+            self.persistenceTask = nil
+            // A change during the write gets a new snapshot; failed writes retry on the next refresh.
+            if self.store.revision != snapshot.revision || self.notificationRevision != notificationRevision ||
+                !self.pendingSpoolFiles.isSubset(of: spoolFiles) {
+                self.schedulePersistence()
+            }
+        }
+    }
+
+    private func flushState() {
+        let pending = EventSpool.pending()
+        pendingSpoolFiles.formUnion(pending.map { $0.file })
+        applyEvents(pending.map { $0.event })
+        persistenceTask?.cancel()
+        refreshTask?.cancel()
+        let snapshot = store
+        let ids = notifiedIDs
+        let spoolFiles = pendingSpoolFiles
+        let saveSessions = savedStoreRevision != snapshot.revision
+        let saveNotifications = savedNotificationRevision != notificationRevision
+        persistenceQueue.sync {
+            _ = Self.writeState(snapshot, notifiedIDs: ids,
+                                saveSessions: saveSessions, saveNotifications: saveNotifications, spoolFiles: spoolFiles)
+        }
+    }
+
+    private nonisolated static func writeState(_ store: SessionStore, notifiedIDs: Set<String>,
+                                              saveSessions: Bool, saveNotifications: Bool,
+                                              spoolFiles: Set<URL>) -> Bool {
+        do {
+            if saveSessions { try store.save(to: KithPaths.sessionState) }
+            if saveNotifications {
+                if !saveSessions { try KithPaths.prepare() }
+                try JSONEncoder().encode(notifiedIDs).write(to: KithPaths.state, options: .atomic)
+            }
+            // Keep queued events replayable until their state has reached disk.
+            for file in spoolFiles { try? FileManager.default.removeItem(at: file) }
+            return true
+        } catch { return false }
     }
 
     private func surfaceForEvent(_ event: AgentEvent) -> AgentSurface {
@@ -456,10 +564,8 @@ final class KithModel: ObservableObject {
                         session: AgentSession? = nil) {
         guard notifiedIDs.insert(id).inserted else { return }
         if notifiedIDs.count > 2_000 { notifiedIDs = [id] }
-        if (try? KithPaths.prepare()) != nil,
-           let data = try? JSONEncoder().encode(notifiedIDs) {
-            try? data.write(to: KithPaths.state, options: .atomic)
-        }
+        notificationRevision &+= 1
+        schedulePersistence()
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -477,14 +583,19 @@ final class KithModel: ObservableObject {
         }
     }
 
+    private func recordWork() {
+        lastWorkEnded = nil
+        previousWork = true
+        if armedAction != nil { sawWorkWhileArmed = true }
+        countdownEnd = nil
+        if countdown != nil { countdown = nil }
+    }
+
     private func updatePowerAndAction() {
         let now = Date()
-        let work = sessions.contains { $0.status == .running || $0.status == .needsInput }
+        let work = hasWork
         if work {
-            lastWorkEnded = nil
-            if armedAction != nil { sawWorkWhileArmed = true }
-            countdownEnd = nil
-            countdown = nil
+            recordWork()
         } else if previousWork {
             lastWorkEnded = now
         }
@@ -499,7 +610,7 @@ final class KithModel: ObservableObject {
             notify(title: "Kith wake hold failed", body: "Could not keep the Mac awake",
                    sound: true, id: "power-error-idle")
         }
-        idleHoldActive = power.idleHoldActive
+        if idleHoldActive != power.idleHoldActive { idleHoldActive = power.idleHoldActive }
         power.holdClosedLid(shouldHold && closedLid) { [weak self] error in
             if let error {
                 self?.message = error
@@ -511,10 +622,10 @@ final class KithModel: ObservableObject {
 
         guard let action = armedAction, sawWorkWhileArmed, !work,
               automationValidated, hooksInstalled, helperEnabled, bootstrapComplete, unavailable.isEmpty,
-              !sessions.isEmpty, store.allSafeToFinish,
+              !store.sessions.isEmpty, store.allSafeToFinish,
               !finalizing else {
             countdownEnd = nil
-            countdown = nil
+            if countdown != nil { countdown = nil }
             return
         }
         if countdownEnd == nil {
@@ -522,7 +633,8 @@ final class KithModel: ObservableObject {
             notify(title: "Kith will \(action.rawValue) in 60 seconds",
                    body: "Open Kith to cancel", sound: true, id: "action-countdown")
         }
-        countdown = max(0, Int(ceil(countdownEnd!.timeIntervalSince(now))))
+        let remaining = max(0, Int(ceil(countdownEnd!.timeIntervalSince(now))))
+        if countdown != remaining { countdown = remaining }
         guard countdown == 0 else { return }
         guard !scanning else { return }
         let actionID = armedID
@@ -537,14 +649,14 @@ final class KithModel: ObservableObject {
                 self.scanning = false
                 self.finalizing = false
                 guard self.armedID == actionID, self.armedAction == action else { return }
-                if self.sessions.contains(where: { $0.status == .running || $0.status == .needsInput }) {
+                if self.hasWork {
                     self.countdownEnd = nil
                     self.countdown = nil
                     return
                 }
                 guard self.automationValidated, self.hooksInstalled, self.helperEnabled,
                       self.unavailable.isEmpty, self.store.allSafeToFinish,
-                      !self.sessions.isEmpty else {
+                      !self.store.sessions.isEmpty else {
                     self.cancelAction()
                     self.message = "Final monitor check blocked the power action"
                     self.notify(title: "Kith canceled \(action.rawValue)",

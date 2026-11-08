@@ -87,7 +87,7 @@ public enum SessionStatus: String, Codable, Sendable {
     case unavailable
 }
 
-public struct AgentSession: Codable, Sendable, Identifiable {
+public struct AgentSession: Codable, Equatable, Sendable, Identifiable {
     public var source: AgentSource
     public var surface: AgentSurface
     public var sessionID: String
