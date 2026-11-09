@@ -4,7 +4,7 @@ Kith is a macOS menu bar app for people who run Claude Code and Codex locally. I
 
 It watches four surfaces: Claude Code in the terminal, Claude Code inside Claude Desktop, the Codex CLI and Codex Desktop.
 
-- **Menu bar panel.** Sessions that need attention come first, followed by a short preview of working sessions and power controls.
+- **Menu bar panel.** Sessions that need attention come first, followed by a short preview of working sessions and power controls. The full window has a sidebar for Sessions, General, Monitoring, Notifications, Power, and After work.
 - **Notifications.** "Needs input", "Finished" and "Failed" alerts say which session and why, such as "Approve Bash · Claude CLI". Each one has an Open button for the terminal, Claude or the Codex thread.
 - **Keep awake.** Kith holds idle sleep while agents work and for a few minutes after. With the optional privileged helper, it can also keep the Mac awake with the lid closed.
 - **Finish actions.** Kith can put the Mac to sleep or shut it down once all work is done, after a cancelable 60-second countdown.
@@ -48,7 +48,7 @@ Install to `/Applications` before you install hooks. Hooks point at the `kith-ev
 
 Without an identity, builds are ad hoc signed and macOS treats every rebuild as a new app. Accessibility may then stay switched on while macOS rejects the new binary. Remove Kith from System Settings → Privacy & Security → Accessibility and add it again after each ad hoc build.
 
-The closed-lid helper only accepts a Kith app signed like the helper: by the same Apple Developer team, or, for self-signed builds, with the exact same certificate. Ad hoc builds can't use it. Monitoring, notifications and idle-sleep holding work with any build. Without a team ID, macOS ties the helper's registration to that exact build, so after each rebuild turn **Disable power helper** and then **Enable power helper** in Settings → Power, then switch closed-lid work back on.
+The closed-lid helper only accepts a Kith app signed like the helper: by the same Apple Developer team, or, for self-signed builds, with the exact same certificate. Ad hoc builds can't use it. Monitoring, notifications and idle-sleep holding work with any build. Without a team ID, macOS ties the helper's registration to that exact build, so after each rebuild choose **Disable helper** and then **Set up helper** in Settings → Power, then switch closed-lid work back on.
 
 ## First run
 
@@ -93,7 +93,7 @@ Notification text includes session titles and project folder names. Agents often
 - **Energy saving.** With the helper enabled, optional Low Power Mode activates below 40% battery, at serious heat, or optionally with the lid closed. It can reduce performance. Kith records the affected AC and battery preferences before changing them and restores the settings it owns. A user turning the mode off during a period relinquishes Kith's ownership for that power source.
 - **Audio.** Optional lid-close muting affects the current output when it provides a software mute control, preserving its device identity before muting. Unsupported outputs show an error and stay unchanged. Opening the lid, ending protection, or reopening Kith restores connected outputs. Disconnected outputs remain listed until they reconnect while Kith is open. **Stop waiting** drops that saved entry and leaves the device unchanged. The root helper cannot restore user audio after an app crash; reopen Kith.
 - **Connectivity and browsers.** Optional network warnings appear after five seconds without an available network path during active work, and clear on recovery. An available path does not establish that an agent service is reachable. Browser diagnostics inspect launch options of supported running browsers for background throttling; they never quit or relaunch a browser.
-- **Finish actions.** Sleep and shutdown are one-shot. They start a cancelable 60-second countdown only after every monitored session is confirmed finished, and a new turn cancels it. Shutdown can lose unsaved work in other apps, so save first. These actions stay locked until you run the checks in [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) on your Mac and switch them on in Settings. That switch is your own sign-off; Kith can't verify it.
+- **Finish actions.** Sleep and shutdown are one-shot. They start a cancelable 60-second countdown only after every monitored session is confirmed finished, and a new turn cancels it. Shutdown can lose unsaved work in other apps, so save first. These actions stay locked until you run the checks in [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) on your Mac and enable **Allow finish actions** in Settings → After work. That switch is your own sign-off; Kith can't verify it.
 
 Protective stops release Kith's wake holds; they do not terminate agents, mark sessions finished, or force sleep. Another app's wake assertion can still keep the Mac awake. Starting a manual period cancels an armed finish action, and manual periods, protective stops, or unresolved recovery block arming a new one.
 

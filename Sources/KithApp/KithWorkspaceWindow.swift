@@ -16,43 +16,115 @@ private struct SessionGroup: Identifiable {
     var id: String { title }
 }
 
+private enum WorkspaceDestination: Hashable {
+    case sessions
+    case settings(SettingsPane)
+}
+
 struct KithWorkspaceWindow: View {
     @EnvironmentObject private var model: KithModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 20) {
-                KithPageHeader(
-                    title: model.workspacePage.rawValue,
-                    subtitle: model.workspacePage == .sessions ?
-                        "Find the work that needs you, or return to an agent." :
-                        "Manage monitoring, notifications, and Mac power."
-                )
-                Spacer(minLength: 12)
-                Picker("View", selection: $model.workspacePage) {
-                    ForEach(WorkspacePage.allCases) { page in
-                        Text(page.rawValue).tag(page)
+        NavigationSplitView {
+            VStack(alignment: .leading, spacing: 0) {
+                Label {
+                    Text("Kith").font(.title3.weight(.semibold))
+                } icon: {
+                    Image(nsImage: KithMenuBarIcon.image)
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 22)
+
+                List(selection: destination) {
+                    Label("Sessions", systemImage: "square.stack")
+                        .badge(model.attentionCount)
+                        .tag(WorkspaceDestination.sessions)
+
+                    Section("Settings") {
+                        ForEach(SettingsPane.allCases) { pane in
+                            HStack {
+                                Label(pane.rawValue, systemImage: pane.symbol)
+                                Spacer(minLength: 0)
+                                if needsAttention(pane) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(.orange)
+                                        .accessibilityLabel("Needs attention")
+                                }
+                            }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel(pane.rawValue + (needsAttention(pane) ? ", needs attention" : ""))
+                            .tag(WorkspaceDestination.settings(pane))
+                        }
                     }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 220)
+                .listStyle(.sidebar)
+
+                Label("On your Mac", systemImage: "lock.shield")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(20)
             }
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 240)
+        } detail: {
+            VStack(alignment: .leading, spacing: 0) {
+                KithPageHeader(
+                    title: model.workspacePage == .sessions ? "Sessions" : model.settingsPane.rawValue,
+                    subtitle: model.workspacePage == .sessions ?
+                        "Your agents, at a glance." : model.settingsPane.subtitle
+                )
+                .padding(.horizontal, 28)
+                .padding(.vertical, 20)
 
-            if model.armedAction != nil { KithArmedBanner() }
-            KithHealthView()
-            KithPowerHealthView()
-            KithMessageView()
-            Divider()
+                if model.armedAction != nil {
+                    KithArmedBanner().padding(.horizontal, 28).padding(.bottom, 16)
+                }
+                if model.workspacePage == .sessions {
+                    KithHealthView().padding(.horizontal, 28)
+                }
+                if model.workspacePage == .sessions || model.settingsPane != .power {
+                    KithPowerHealthView().padding(.horizontal, 28)
+                }
+                KithMessageView().padding(.horizontal, 28)
+                Divider()
 
-            if model.workspacePage == .sessions {
-                KithSessionsPage()
-            } else {
-                KithSettingsPage()
+                if model.workspacePage == .sessions {
+                    KithSessionsPage().padding(28)
+                } else {
+                    KithSettingsPage()
+                        .id(model.settingsPane)
+                }
+            }
+            .frame(minWidth: 490)
+            .background(Color(nsColor: .windowBackgroundColor))
+        }
+        .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 740, minHeight: 520)
+    }
+
+    private var destination: Binding<WorkspaceDestination?> {
+        Binding {
+            model.workspacePage == .sessions ? .sessions : .settings(model.settingsPane)
+        } set: { selection in
+            guard let selection else { return }
+            switch selection {
+            case .sessions: model.workspacePage = .sessions
+            case .settings(let pane):
+                model.settingsPane = pane
+                model.workspacePage = .settings
             }
         }
-        .padding(20)
-        .frame(minWidth: 560, minHeight: 400)
+    }
+
+    private func needsAttention(_ pane: SettingsPane) -> Bool {
+        switch pane {
+        case .monitoring: model.hasMonitoringIssue
+        case .notifications: model.notificationIssue != nil
+        case .power: model.wakeStopped != nil || model.powerStatus.recovery != .restored ||
+            model.audioIssue != nil || model.audioRecoveryPending || model.networkWarning || model.controlIssue != nil
+        case .general, .afterWork: false
+        }
     }
 }
 
@@ -80,22 +152,24 @@ private struct KithSessionsPage: View {
             }
             .pickerStyle(.segmented)
 
-            Divider()
-
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
                     if groups.isEmpty {
                         emptyState
                     } else {
                         ForEach(groups) { group in
-                            VStack(alignment: .leading, spacing: 5) {
-                                Text("\(group.title) (\(group.sessions.count))")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(group.title)
+                                    Text("\(group.sessions.count)").foregroundStyle(.secondary)
+                                }
+                                .font(.subheadline.weight(.semibold))
                                 ForEach(group.sessions) { session in
                                     KithSessionRow(session: session, showActionTitle: true)
                                 }
                             }
+                            .padding(14)
+                            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
                         }
                     }
                 }
@@ -127,7 +201,8 @@ private struct KithSessionsPage: View {
 
     private var emptyState: some View {
         VStack(spacing: 8) {
-            Image(systemName: model.hasMonitoringIssue ? "exclamationmark.triangle" : "checkmark.circle")
+            Image(systemName: !searchText.isEmpty ? "magnifyingglass" :
+                    model.hasMonitoringIssue ? "exclamationmark.triangle" : "checkmark.circle")
                 .font(.title2)
                 .foregroundStyle(.secondary)
             Text(emptyTitle)

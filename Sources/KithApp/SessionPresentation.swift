@@ -165,21 +165,22 @@ struct KithHealthView: View {
 
     var body: some View {
         if model.hasMonitoringIssue {
-            VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
                 Label(model.hooksInstalled ? "Monitoring needs attention" : "Finish monitoring setup",
-                      systemImage: "exclamationmark.triangle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.orange)
-                Text(monitoringDetail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Review monitoring") { showSettings(.monitoring) }
+                      systemImage: "exclamationmark.circle")
                     .font(.caption.weight(.medium))
+                    .foregroundStyle(.orange)
+                Spacer(minLength: 4)
+                Button("Review") { showSettings(.monitoring) }
+                    .font(.caption.weight(.medium))
+                    .accessibilityLabel("Review monitoring")
             }
-            .padding(12)
+            .help(monitoringDetail)
+            .accessibilityElement(children: .contain)
+            .accessibilityValue(monitoringDetail)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.orange.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
         }
         if let notificationIssue = model.notificationIssue {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -193,6 +194,7 @@ struct KithHealthView: View {
                 Button("Review") { showSettings(.notifications) }
                     .font(.caption)
             }
+            .padding(.vertical, 8)
         }
     }
 
@@ -232,6 +234,7 @@ struct KithMessageView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Dismiss message")
             }
+            .padding(.vertical, 8)
         }
     }
 }
@@ -248,25 +251,5 @@ struct KithPageHeader: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
-    }
-}
-
-struct KithSection<Content: View>: View {
-    let title: String
-    private let content: Content
-
-    init(_ title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

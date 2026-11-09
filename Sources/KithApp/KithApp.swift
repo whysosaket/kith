@@ -33,7 +33,7 @@ struct KithApp: App {
         Window("Kith", id: "workspace") {
             KithWorkspaceWindow().environmentObject(model)
         }
-        .defaultSize(width: 720, height: 560)
+        .defaultSize(width: 940, height: 680)
 
     }
 
