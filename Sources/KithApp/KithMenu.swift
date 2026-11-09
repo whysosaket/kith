@@ -39,10 +39,13 @@ struct KithMenu: View {
                     .padding(.bottom, 12)
             }
 
+            KithWakeTimer()
+                .padding(.bottom, 14)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     KithHealthView()
-            KithPowerHealthView()
+                    KithPowerHealthView()
                     KithMessageView()
 
                     if !model.attentionSessions.isEmpty {
@@ -66,7 +69,7 @@ struct KithMenu: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollIndicators(.hidden)
-            .frame(maxHeight: model.armedAction == nil ? 420 : 330)
+            .frame(maxHeight: model.armedAction == nil ? 300 : 210)
             .fixedSize(horizontal: false, vertical: true)
 
             Divider().padding(.top, 12)
@@ -124,6 +127,127 @@ struct KithMenu: View {
     private func showSettings(_ pane: SettingsPane) {
         model.settingsPane = pane
         showWorkspace(.settings)
+    }
+}
+
+private struct KithWakeTimer: View {
+    @EnvironmentObject private var model: KithModel
+    @State private var selectedMinutes = 60
+    @State private var customHours = "1"
+    @State private var customMinutes = "0"
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let deadline = model.wakeStopped == nil ? model.wakeDeadline : nil
+            let activeDeadline = deadline.flatMap { $0 > context.date ? $0 : nil }
+            let exceedsLimit = activeDeadline.map {
+                $0.timeIntervalSince(context.date) + (duration ?? 0) > 86_400
+            } ?? false
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label("Awake timer", systemImage: "timer")
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    if activeDeadline != nil {
+                        Button("End") { model.endWake() }
+                            .controlSize(.small)
+                            .accessibilityLabel("End awake timer")
+                            .disabled(model.controlIssue != nil)
+                    }
+                }
+
+                if let activeDeadline {
+                    Text(timerInterval: context.date...activeDeadline, countsDown: true)
+                        .font(.system(size: 28, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .accessibilityLabel(Text("Awake time remaining: ") + Text(timerInterval: context.date...activeDeadline, countsDown: true))
+                    HStack {
+                        Text(model.manualWakeActive ? "Manual wake period" : "Agent awake limit")
+                        Spacer()
+                        Text("Ends \(activeDeadline, style: .time)")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    if !model.idleHoldActive {
+                        Text("Awake hold is inactive. Check power status below.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    } else if !model.manualWakeActive {
+                        Text("Protection can end earlier when agent work finishes.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text(model.wakeStopped != nil || deadline != nil ? "Timer stopped. Choose a duration to start again." : "Keep your Mac awake, even without agent work.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    Picker("Duration", selection: $selectedMinutes) {
+                        Text("15 minutes").tag(15)
+                        Text("30 minutes").tag(30)
+                        Text("1 hour").tag(60)
+                        Text("2 hours").tag(120)
+                        Text("4 hours").tag(240)
+                        Text("Custom…").tag(0)
+                    }
+                    .labelsHidden()
+                    .accessibilityLabel("Awake timer duration")
+                    Button(activeDeadline == nil ? "Start timer" : "Add time") {
+                        applyDuration(extending: activeDeadline != nil)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(duration == nil || exceedsLimit || model.controlIssue != nil)
+                }
+
+                if selectedMinutes == 0 {
+                    HStack(spacing: 6) {
+                        TextField("Hours", text: $customHours)
+                            .accessibilityLabel("Timer hours")
+                        Text("hr")
+                        TextField("Minutes", text: $customMinutes)
+                            .accessibilityLabel("Timer minutes")
+                        Text("min")
+                    }
+                    .textFieldStyle(.roundedBorder)
+                    .font(.caption)
+                    .onSubmit {
+                        if !exceedsLimit { applyDuration(extending: activeDeadline != nil) }
+                    }
+                    Text("Choose 1 minute to 24 hours; minutes must be 0–59.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if exceedsLimit {
+                    Text("At most 24 hours can remain. Choose less time to add.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                if activeDeadline == nil, model.armedAction != nil {
+                    Text("Starting a timer cancels the armed after-work action.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private var duration: TimeInterval? {
+        if selectedMinutes != 0 { return TimeInterval(selectedMinutes * 60) }
+        guard let hours = Int(customHours), let minutes = Int(customMinutes),
+              (0...24).contains(hours), (0...59).contains(minutes) else { return nil }
+        let totalMinutes = hours * 60 + minutes
+        return (1...1440).contains(totalMinutes) ? TimeInterval(totalMinutes * 60) : nil
+    }
+
+    private func applyDuration(extending: Bool) {
+        guard let duration, model.controlIssue == nil else { return }
+        if extending { model.extendWake(seconds: duration) }
+        else { model.startManualWake(seconds: duration) }
     }
 }
 
