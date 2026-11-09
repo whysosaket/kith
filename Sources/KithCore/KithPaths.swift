@@ -2,7 +2,10 @@ import Foundation
 
 public enum KithPaths {
     public static var support: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        if let path = ProcessInfo.processInfo.environment["KITH_HOME"], path.hasPrefix("/") {
+            return URL(fileURLWithPath: path, isDirectory: true)
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/Kith", isDirectory: true)
     }
 
@@ -10,6 +13,9 @@ public enum KithPaths {
     public static var state: URL { support.appendingPathComponent("state.json") }
     public static var sessionState: URL { support.appendingPathComponent("sessions.json") }
     public static var socket: URL { support.appendingPathComponent("event.sock") }
+    public static var powerState: URL { support.appendingPathComponent("power.json") }
+    public static var powerPreferences: URL { support.appendingPathComponent("power-preferences.json") }
+    public static var powerCommands: URL { support.appendingPathComponent("power-control", isDirectory: true) }
 
     public static func prepare() throws {
         try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true,

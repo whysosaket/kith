@@ -41,6 +41,7 @@ struct KithWorkspaceWindow: View {
 
             if model.armedAction != nil { KithArmedBanner() }
             KithHealthView()
+            KithPowerHealthView()
             KithMessageView()
             Divider()
 

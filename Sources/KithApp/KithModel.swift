@@ -26,6 +26,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case monitoring = "Monitoring"
     case notifications = "Notifications"
     case power = "Power"
+    case general = "General"
 
     var id: String { rawValue }
 }
@@ -44,37 +45,70 @@ final class KithModel: ObservableObject {
     @Published private(set) var message: String?
     @Published private(set) var countdown: Int?
     @Published private(set) var armedAction: FinishAction?
+    @Published var powerPreferences = PowerPreferences() {
+        didSet {
+            do {
+                try PowerStorage.write(powerPreferences.validated(), to: KithPaths.powerPreferences)
+                if powerInbox != nil { controlIssue = nil }
+            }
+            catch { message = error.localizedDescription }
+        }
+    }
+    @Published private(set) var powerStatus = PowerHelperStatus()
+    @Published private(set) var conditions = PowerConditions()
+    @Published private(set) var wakeDeadline: Date?
+    @Published private(set) var wakeStopped: WakeStop?
+    @Published private(set) var manualWakeActive = false
+    @Published private(set) var displayHoldActive = false
+    @Published private(set) var networkWarning = false
+    @Published private(set) var audioPending: [SavedAudioMute] = []
+    @Published private(set) var audioIssue: String?
+    @Published private(set) var controlIssue: String?
+    let workflow = WorkflowSettings()
     @Published var workspacePage: WorkspacePage = .sessions
     @Published var settingsPane: SettingsPane = .monitoring
     @Published var keepAwake: Bool {
-        didSet { UserDefaults.standard.set(keepAwake, forKey: "keepAwake") }
+        didSet { KithTesting.defaults.set(keepAwake, forKey: "keepAwake") }
     }
     @Published var closedLid: Bool {
-        didSet { UserDefaults.standard.set(closedLid, forKey: "closedLid") }
+        didSet { KithTesting.defaults.set(closedLid, forKey: "closedLid") }
     }
     @Published var postRunMinutes: Int {
-        didSet { UserDefaults.standard.set(postRunMinutes, forKey: "postRunMinutes") }
+        didSet { KithTesting.defaults.set(postRunMinutes, forKey: "postRunMinutes") }
     }
     @Published var attentionSound: Bool {
-        didSet { UserDefaults.standard.set(attentionSound, forKey: "attentionSound") }
+        didSet { KithTesting.defaults.set(attentionSound, forKey: "attentionSound") }
     }
     @Published var completionSound: Bool {
-        didSet { UserDefaults.standard.set(completionSound, forKey: "completionSound") }
+        didSet { KithTesting.defaults.set(completionSound, forKey: "completionSound") }
     }
     @Published var automationValidated: Bool {
         didSet {
-            UserDefaults.standard.set(automationValidated, forKey: "automationValidated")
+            KithTesting.defaults.set(automationValidated, forKey: "automationValidated")
             if !automationValidated { cancelAction() }
         }
     }
 
     private var store = SessionStore.load(from: KithPaths.sessionState)
     private let power = PowerClient()
+    private let powerSession = PowerSession(stateURL: KithPaths.powerState)
+    private let powerMonitor = PowerSystemMonitor()
+    private let audioRecovery = AudioRecovery(hardware: MacAudioHardware(),
+        stateURL: KithPaths.support.appendingPathComponent("audio-recovery.json"))
+    private let diagnostics = PowerDiagnostics(url: KithPaths.support.appendingPathComponent("power-diagnostics.json"))
+    private var powerInbox: PowerCommandInbox?
+    private var connectivity = ConnectivityState()
+    private var batteryChanged = false
+    private var lastPowerWarning: String?
+    private var lastHelperCheck = Date.distantPast
+    private var audioRestoreRequired = true
+    #if DEBUG
+    private var lastFixtureRevision: Int?
+    private var fixtureNetwork: Bool?
+    #endif
     private var timer: Timer?
     private var scanning = false
     private var bootstrapComplete = false
-    private var previousWork = false
-    private var lastWorkEnded: Date?
     private var armedAt: Date?
     private var armedID: UUID?
     private var sawWorkWhileArmed = false
@@ -96,7 +130,11 @@ final class KithModel: ObservableObject {
     private var terminationObserver: AnyCancellable?
 
     init() {
-        let defaults = UserDefaults.standard
+        let defaults = KithTesting.defaults
+        do { powerPreferences = try PowerStorage.read(PowerPreferences.self, from: KithPaths.powerPreferences)?.validated() ?? PowerPreferences() }
+        catch { controlIssue = "Power settings could not be read. Review and save them in Settings → Power." }
+        do { powerInbox = try PowerCommandInbox(directory: KithPaths.powerCommands) }
+        catch { controlIssue = error.localizedDescription }
         keepAwake = defaults.object(forKey: "keepAwake") as? Bool ?? true
         closedLid = defaults.bool(forKey: "closedLid")
         postRunMinutes = defaults.object(forKey: "postRunMinutes") as? Int ?? 5
@@ -115,18 +153,46 @@ final class KithModel: ObservableObject {
                 if let session = self?.store.sessions[key] { self?.open(session) }
             }
         }
-        notifier.delegate = notificationRouter
-        notifier.setNotificationCategories(KithNotification.categories)
-        notifier.requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] _, _ in
-            Task { @MainActor in self?.refreshNotificationStatus() }
-        }
-        eventSocket = try? EventSocket.listen { [weak self] event in
-            Task { @MainActor in self?.accept(event) }
+        if !KithTesting.enabled && powerInbox != nil {
+            notifier.delegate = notificationRouter
+            notifier.setNotificationCategories(KithNotification.categories)
+            notifier.requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] _, _ in
+                Task { @MainActor in self?.refreshNotificationStatus() }
+            }
+            eventSocket = try? EventSocket.listen { [weak self] event in
+                Task { @MainActor in self?.accept(event) }
+            }
         }
         terminationObserver = NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             .sink { [weak self] _ in
-                MainActor.assumeIsolated { self?.flushState() }
+                MainActor.assumeIsolated {
+                    if self?.powerInbox != nil { self?.flushState() }
+                    self?.powerMonitor.stop()
+                    self?.power.applyLease(nil, id: nil)
+                    self?.power.holdIdleSleep(false)
+                    _ = self?.power.holdDisplay(until: nil)
+                    if !KithTesting.enabled && self?.powerInbox != nil { self?.audioRecovery.restore() }
+                    KithTesting.cleanUp()
+                }
             }
+        power.onError = { [weak self] error in
+            guard let self else { return }
+            self.message = error
+            self.cancelAction()
+            self.diagnostics.record("Power helper: " + error)
+        }
+        powerMonitor.onChange = { [weak self] conditions, batteryChanged in
+            guard let self else { return }
+            self.conditions = conditions
+            self.batteryChanged = self.batteryChanged || batteryChanged
+            self.updatePowerAndAction()
+        }
+        powerMonitor.onNetworkChange = { [weak self] in self?.updateConnectivity() }
+        if !KithTesting.enabled && powerInbox != nil {
+            audioRecovery.restore()
+            workflow.refreshLogin()
+            powerMonitor.start()
+        }
         tick()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
@@ -147,6 +213,10 @@ final class KithModel: ObservableObject {
         store.sessions.values.contains { $0.status == .running || $0.status == .needsInput }
     }
     var powerSummary: String {
+        if let controlIssue { return controlIssue }
+        if let wakeStopped { return wakeStopped.message }
+        if (closedLid || powerPreferences.saveEnergy) && !helperEnabled { return "Power helper is not enabled" }
+        if powerStatus.recovery != .restored { return powerStatus.recovery.title }
         if closedLidReady {
             return externalWakeOwner ? "External closed-lid hold detected" : "Closed-lid hold active"
         }
@@ -182,6 +252,12 @@ final class KithModel: ObservableObject {
     }
 
     var finishActionBlockReason: String? {
+        if let controlIssue { return controlIssue }
+        if manualWakeActive { return "End the manual wake period before arming a finish action." }
+        if let wakeStopped { return wakeStopped.message + ". Resume awake protection before arming." }
+        if powerStatus.recovery != .restored || audioIssue != nil || audioRecoveryPending || (!hasWork && !audioPending.isEmpty) {
+            return "Resolve pending power recovery before arming."
+        }
         if !automationValidated { return "Finish actions are locked until live validation is completed." }
         if !bootstrapComplete || !hooksInstalled || !unavailable.isEmpty {
             return "All four session monitors must be healthy before arming."
@@ -189,6 +265,8 @@ final class KithModel: ObservableObject {
         if !helperEnabled { return "Enable the power helper before arming a finish action." }
         return nil
     }
+
+    var audioRecoveryPending: Bool { audioRestoreRequired && !audioPending.isEmpty }
 
     var finishActionPhase: FinishActionPhase? {
         guard armedAction != nil else { return nil }
@@ -341,7 +419,118 @@ final class KithModel: ObservableObject {
         notify(title: "Kith test", body: "Notifications are working", sound: true, id: UUID().uuidString)
     }
 
+    func startManualWake(seconds: TimeInterval) { _ = handlePowerCommand(PowerCommand(kind: .start, seconds: seconds)) }
+    func extendWake(seconds: TimeInterval = 3600) { _ = handlePowerCommand(PowerCommand(kind: .extend, seconds: seconds)) }
+    func endWake() { _ = handlePowerCommand(PowerCommand(kind: .end)) }
+    func resumeWake() { _ = handlePowerCommand(PowerCommand(kind: .resume)) }
+
+    func retryPowerRecovery() {
+        power.retryRecovery()
+        audioRecovery.restore()
+        publishPowerState()
+    }
+
+    func stopWaitingForAudio(_ id: UUID) {
+        do { try audioRecovery.stopWaiting(id: id); publishPowerState() }
+        catch { message = error.localizedDescription }
+    }
+
+    func copyPowerDiagnostics() {
+        NSPasteboard.general.clearContents()
+        let text = [powerStatus.recovery.title, powerStatus.detail, powerSession.issue, audioIssue, diagnostics.text]
+            .compactMap { $0 }.joined(separator: "\n")
+        NSPasteboard.general.setString(text, forType: .string)
+        message = "Power diagnostics copied. Review them before sharing."
+    }
+
+    private func handlePowerCommand(_ command: PowerCommand) -> PowerCommandReply {
+        do {
+            if command.kind != .status {
+                guard controlIssue == nil else { throw PowerError.unavailable(controlIssue!) }
+                try powerSession.apply(command, now: Date(), conditions: conditions, preferences: powerPreferences)
+                if command.kind == .start || command.kind == .end { cancelAction() }
+                if command.kind == .resume { keepAwake = true }
+                diagnostics.record("Power control: " + command.kind.rawValue)
+            }
+            updatePowerAndAction()
+            let status = PowerControlStatus(requested: power.idleHoldActive,
+                manual: manualWakeActive, deadline: wakeDeadline, stopped: wakeStopped,
+                conditions: conditions, helper: powerStatus, idleHoldActive: power.idleHoldActive,
+                displayHoldActive: power.displayHoldActive, networkWarning: networkWarning,
+                finishActionArmed: armedAction != nil)
+            return PowerCommandReply(ok: true, message: command.kind == .status ? powerSummary : "Wake request acknowledged", status: status)
+        } catch {
+            message = error.localizedDescription
+            return PowerCommandReply(ok: false, message: error.localizedDescription)
+        }
+    }
+
+    private func publishPowerState() {
+        let period = powerSession.policy.period
+        if wakeDeadline != period?.deadline { wakeDeadline = period?.deadline }
+        if wakeStopped != powerSession.policy.stopped { wakeStopped = powerSession.policy.stopped }
+        let manual = period?.manual == true && wakeStopped == nil
+        if manualWakeActive != manual { manualWakeActive = manual }
+        if idleHoldActive != power.idleHoldActive { idleHoldActive = power.idleHoldActive }
+        if displayHoldActive != power.displayHoldActive { displayHoldActive = power.displayHoldActive }
+        if powerStatus != power.helperStatus { powerStatus = power.helperStatus }
+        if audioPending != audioRecovery.pending { audioPending = audioRecovery.pending }
+        if audioIssue != audioRecovery.issue { audioIssue = audioRecovery.issue }
+        if let issue = powerSession.issue { message = issue }
+    }
+
+    private func updateConnectivity() {
+        let active = powerPreferences.networkAlerts && (hasWork || manualWakeActive)
+        var available = powerMonitor.networkAvailable
+        #if DEBUG
+        if KithTesting.enabled { available = fixtureNetwork }
+        #endif
+        if let event = connectivity.update(available: available, active: active, now: Date()) {
+            switch event {
+            case .lost:
+                notify(title: "Kith network unavailable", body: "Active work may need connectivity. Open the session to check.",
+                       sound: true, id: "power-network")
+                diagnostics.record("Network unavailable during active work")
+            case .restored(let seconds):
+                notify(title: "Kith network available", body: "Network availability returned after \(seconds) seconds. Check the agent's state.",
+                       sound: false, id: "power-network")
+                diagnostics.record("Network availability restored")
+            }
+        }
+        if networkWarning != connectivity.warning { networkWarning = connectivity.warning }
+    }
+
+    private func updatePowerWarnings(active: Bool) {
+        var warning: String?
+        if active && conditions.heat == .serious { warning = "The Mac is reporting serious heat. Critical heat will stop awake protection." }
+        if active, !conditions.onAC, case .percent(let percent) = conditions.battery, percent <= powerPreferences.batteryWarning {
+            warning = "Battery is below \(powerPreferences.batteryWarning)%. Awake protection stops at \(powerPreferences.batteryFloor)%."
+        }
+        if warning != lastPowerWarning, let warning {
+            notify(title: "Kith power warning", body: warning, sound: true, id: "power-condition-warning")
+        }
+        lastPowerWarning = warning
+    }
+
     private func tick() {
+        #if DEBUG
+        if KithTesting.enabled { integrationTick(); return }
+        #endif
+        guard powerInbox != nil else { return }
+        if helperEnabled != power.helperEnabled {
+            helperEnabled = power.helperEnabled
+            cancelAction()
+            if helperEnabled { power.refreshHelper() }
+        }
+        powerInbox?.drain { [weak self] command in
+            self?.handlePowerCommand(command) ?? PowerCommandReply(ok: false, message: "Kith is closing")
+        }
+        powerMonitor.refreshLid()
+        if Date().timeIntervalSince(lastHelperCheck) >= 30 {
+            lastHelperCheck = Date()
+            power.refreshHelper()
+            workflow.refreshLogin()
+        }
         let installed = HookInstaller.isInstalled(executable: eventExecutable)
         if hooksInstalled != installed { hooksInstalled = installed }
         let trusted = CodexAXProbe.trusted
@@ -368,7 +557,31 @@ final class KithModel: ObservableObject {
         updatePowerAndAction()
     }
 
+    #if DEBUG
+    private func integrationTick() {
+        if let fixture = try? PowerStorage.read(PowerTestFixture.self,
+            from: KithPaths.support.appendingPathComponent("fixture.json")) {
+            conditions = fixture.conditions
+            fixtureNetwork = fixture.networkAvailable
+            batteryChanged = fixture.revision != lastFixtureRevision
+            if batteryChanged && fixture.armFinishAction == true { armedAction = .sleep; armedAt = Date() }
+            lastFixtureRevision = fixture.revision
+            let status = SessionStatus(rawValue: fixture.status) ?? .unavailable
+            let observed = AgentSession(source: .codex, surface: .codexCLI, sessionID: "e2e",
+                                        status: status, lastActivity: Date())
+            _ = store.reconcile(observed)
+            sessions = Array(store.sessions.values)
+            hooksInstalled = true
+            bootstrapComplete = true
+            unavailable = status == .unavailable ? [.codexCLI] : []
+        }
+        updatePowerAndAction()
+        powerInbox?.drain { handlePowerCommand($0) }
+    }
+    #endif
+
     private func refreshNotificationStatus() {
+        if KithTesting.enabled { return }
         notifier.getNotificationSettings { [weak self] settings in
             let issue: String?
             if settings.authorizationStatus != .authorized {
@@ -562,6 +775,7 @@ final class KithModel: ObservableObject {
 
     private func notify(title: String, body: String, sound: Bool, id: String,
                         session: AgentSession? = nil) {
+        if KithTesting.enabled { return }
         guard notifiedIDs.insert(id).inserted else { return }
         if notifiedIDs.count > 2_000 { notifiedIDs = [id] }
         notificationRevision &+= 1
@@ -584,40 +798,65 @@ final class KithModel: ObservableObject {
     }
 
     private func recordWork() {
-        lastWorkEnded = nil
-        previousWork = true
         if armedAction != nil { sawWorkWhileArmed = true }
         countdownEnd = nil
         if countdown != nil { countdown = nil }
     }
 
     private func updatePowerAndAction() {
+        guard powerInbox != nil else { return }
         let now = Date()
         let work = hasWork
-        if work {
-            recordWork()
-        } else if previousWork {
-            lastWorkEnded = now
-        }
-        previousWork = work
+        if work { recordWork() }
         if let armedAt, now.timeIntervalSince(armedAt) >= 86_400 { cancelAction() }
-
-        let extraHold = lastWorkEnded.map { now.timeIntervalSince($0) < Double(postRunMinutes * 60) } ?? false
-        let shouldHold = (keepAwake || closedLid) && (work || extraHold)
-        if !power.holdIdleSleep(shouldHold) {
-            message = "Could not keep the Mac awake"
-            cancelAction()
-            notify(title: "Kith wake hold failed", body: "Could not keep the Mac awake",
-                   sound: true, id: "power-error-idle")
+        var decision = powerSession.update(now: now, work: work, monitoringReady: bootstrapComplete,
+            automaticEnabled: keepAwake || closedLid, graceSeconds: Double(postRunMinutes * 60),
+            conditions: conditions, preferences: powerPreferences, batteryChanged: batteryChanged)
+        batteryChanged = false
+        if powerInbox == nil || controlIssue != nil || (power.helperStatus.recovery != .restored && (closedLid || decision.lowPower)) {
+            decision.hold = false
+            decision.display = false
+            decision.lowPower = false
         }
-        if idleHoldActive != power.idleHoldActive { idleHoldActive = power.idleHoldActive }
-        power.holdClosedLid(shouldHold && closedLid) { [weak self] error in
-            if let error {
-                self?.message = error
-                self?.cancelAction()
-                self?.notify(title: "Kith closed-lid hold failed", body: error,
-                             sound: true, id: "power-error-\(error)")
+        if let stop = decision.stop, wakeStopped != stop {
+            diagnostics.record(stop.message)
+            if stop != .user {
+                notify(title: "Kith awake protection stopped", body: stop.message,
+                       sound: true, id: "power-stop-" + (powerSession.policy.period?.id.uuidString ?? "state"))
             }
+        }
+        if decision.stop != nil { cancelAction() }
+        if decision.reminder, let deadline = powerSession.policy.period?.deadline {
+            notify(title: "Kith awake protection ends soon",
+                   body: "Protection ends at \(deadline.formatted(date: .omitted, time: .shortened)). Extend it in Power.",
+                   sound: true, id: "power-deadline-reminder")
+        }
+        let deadline = powerSession.policy.period?.deadline
+        let idleApplied = power.holdIdleSleep(decision.hold, until: deadline)
+        let displayApplied = power.holdDisplay(until: decision.display ? deadline : nil)
+        if !idleApplied || !displayApplied {
+            message = "Could not apply awake protection"
+            diagnostics.record("Could not apply system or display wake assertion")
+            cancelAction()
+        }
+        let needsHelper = decision.hold && (closedLid || decision.lowPower)
+        power.applyLease(needsHelper ? deadline.map { PowerLeaseRequest(deadline: $0, closedLid: closedLid, lowPower: decision.lowPower) } : nil,
+                         id: needsHelper ? powerSession.policy.period?.id : nil)
+        let shouldMute = decision.hold && powerPreferences.muteWithLidClosed && conditions.lidClosed && (armedAction == nil || work)
+        audioRestoreRequired = !shouldMute
+        if !KithTesting.enabled && shouldMute {
+            audioRecovery.muteDefaultOutput()
+        } else if !KithTesting.enabled { audioRecovery.restore() }
+        publishPowerState()
+        updateConnectivity()
+        updatePowerWarnings(active: decision.hold)
+        if !KithTesting.enabled { workflow.refreshBrowsers(enabled: decision.hold && powerPreferences.browserDiagnostics) }
+        if decision.stop != nil || controlIssue != nil || manualWakeActive || powerStatus.recovery != .restored || audioIssue != nil || audioRecoveryPending {
+            if armedAction != nil {
+                cancelAction()
+                message = "Kith canceled the finish action because power recovery or awake protection needs attention"
+            }
+            return
         }
 
         guard let action = armedAction, sawWorkWhileArmed, !work,
@@ -656,7 +895,10 @@ final class KithModel: ObservableObject {
                 }
                 guard self.automationValidated, self.hooksInstalled, self.helperEnabled,
                       self.unavailable.isEmpty, self.store.allSafeToFinish,
-                      !self.store.sessions.isEmpty else {
+                      !self.store.sessions.isEmpty, !self.manualWakeActive,
+                      self.wakeStopped == nil, self.controlIssue == nil,
+                      self.powerStatus.recovery == .restored, self.audioIssue == nil,
+                      self.audioPending.isEmpty else {
                     self.cancelAction()
                     self.message = "Final monitor check blocked the power action"
                     self.notify(title: "Kith canceled \(action.rawValue)",
@@ -665,7 +907,7 @@ final class KithModel: ObservableObject {
                     return
                 }
                 self.cancelAction()
-                self.power.perform(action.rawValue) { [weak self] success, response in
+                self.power.perform(action.rawValue) { [weak self = self] success, response in
                     if !success {
                         self?.message = response
                         self?.notify(title: "Kith could not \(action.rawValue)",

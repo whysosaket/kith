@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add bounded automatic and manual wake periods, extension reminders, battery and thermal guardrails, and visible recovery status.
+- Add display-awake mode, optional Low Power Mode and lid-close audio muting, network warnings, and browser-throttling diagnostics.
+- Bundle the `kith power` CLI and add launch-at-login and user-initiated update settings.
+- Add power policy, helper recovery, audio, request protocol, and debug app-to-CLI end-to-end tests.
+
 ## 0.1.0 (2026-09-30)
 
 First public release.

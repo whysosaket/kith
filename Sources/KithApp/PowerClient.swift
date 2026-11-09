@@ -17,21 +17,34 @@ private final class ReplyGate {
     }
 }
 
+private struct HelperCallback: @unchecked Sendable { let call: (Bool, String) -> Void }
+
 @MainActor
 final class PowerClient {
     private var assertionID: IOPMAssertionID?
     private var connection: NSXPCConnection?
-    private let leaseID = UUID().uuidString
-    private var leaseActive = false
+    private var activeLeaseID: String?
+    private var desiredLeaseID: String?
+    private var desiredRequest: PowerLeaseRequest?
+    private var lastRequest: PowerLeaseRequest?
     private var requestInFlight = false
     private var lastRenewal = Date.distantPast
-    private(set) var externalWakeOwner = false
+    private var displayAssertionID: IOPMAssertionID?
+    private var simulatedIdle = false
+    private var simulatedDisplay = false
+    private(set) var helperStatus = PowerHelperStatus()
+    var onError: ((String) -> Void)?
+    var externalWakeOwner: Bool { helperStatus.externalWakeOwner }
 
     var helperEnabled: Bool {
-        SMAppService.daemon(plistName: PowerService.plistName).status == .enabled
+        !KithTesting.enabled && SMAppService.daemon(plistName: PowerService.plistName).status == .enabled
     }
-    var idleHoldActive: Bool { assertionID != nil }
-    var closedLidReady: Bool { leaseActive }
+    var idleHoldActive: Bool { KithTesting.enabled ? simulatedIdle : assertionID != nil }
+    var closedLidReady: Bool {
+        helperEnabled && helperStatus.leaseActive && desiredRequest?.closedLid == true &&
+            activeLeaseID != nil && helperStatus.leaseID == activeLeaseID && activeLeaseID == desiredLeaseID
+    }
+    var displayHoldActive: Bool { KithTesting.enabled ? simulatedDisplay : displayAssertionID != nil }
 
     func registerHelper() throws {
         let service = SMAppService.daemon(plistName: PowerService.plistName)
@@ -39,29 +52,37 @@ final class PowerClient {
     }
 
     func unregisterHelper(completion: @escaping (Error?) -> Void) {
-        let unregister = {
-            do {
-                let service = SMAppService.daemon(plistName: PowerService.plistName)
-                if service.status == .enabled { try service.unregister() }
-                completion(nil)
-            } catch { completion(error) }
+        desiredRequest = nil
+        desiredLeaseID = nil
+        guard !requestInFlight else {
+            completion(NSError(domain: "KithPower", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Wait for the current power request, then disable the helper again"]))
+            return
         }
-        if leaseActive {
-            call({ proxy, reply in proxy.release(leaseID: self.leaseID, withReply: reply) }) {
-                success, message in
-                guard success else {
-                    completion(NSError(domain: "KithPower", code: 1,
-                                       userInfo: [NSLocalizedDescriptionKey: message]))
+        let unregister = {
+            self.readStatus { success, message in
+                guard success, !self.helperStatus.leaseActive, self.helperStatus.recovery == .restored else {
+                    completion(NSError(domain: "KithPower", code: 1, userInfo: [NSLocalizedDescriptionKey: message]))
                     return
                 }
-                self.leaseActive = false
+                do { try SMAppService.daemon(plistName: PowerService.plistName).unregister(); completion(nil) }
+                catch { completion(error) }
+            }
+        }
+        if let id = activeLeaseID {
+            call({ proxy, reply in proxy.release(leaseID: id, withReply: reply) }) { success, message in
+                guard success else {
+                    completion(NSError(domain: "KithPower", code: 1, userInfo: [NSLocalizedDescriptionKey: message])); return
+                }
+                self.activeLeaseID = nil
                 unregister()
             }
         } else { unregister() }
     }
 
     @discardableResult
-    func holdIdleSleep(_ shouldHold: Bool) -> Bool {
+    func holdIdleSleep(_ shouldHold: Bool, until deadline: Date? = nil) -> Bool {
+        if KithTesting.enabled { simulatedIdle = shouldHold; return true }
         if shouldHold && assertionID == nil {
             var id = IOPMAssertionID(0)
             let status = IOPMAssertionCreateWithDescription(
@@ -69,62 +90,134 @@ final class PowerClient {
                 "Kith active coding agents" as CFString,
                 "Monitoring local coding sessions" as CFString,
                 "Coding agents are working" as CFString,
-                nil, 0, nil, &id)
+                nil, deadline.map { max(1, $0.timeIntervalSinceNow) } ?? 45,
+                kIOPMAssertionTimeoutActionTurnOff as CFString, &id)
             if status == kIOReturnSuccess { assertionID = id }
             else { return false }
         } else if !shouldHold, let assertionID {
-            IOPMAssertionRelease(assertionID)
+            guard IOPMAssertionRelease(assertionID) == kIOReturnSuccess else { return false }
             self.assertionID = nil
+        }
+        if shouldHold, let id = assertionID, let deadline {
+            return IOPMAssertionSetProperty(id, kIOPMAssertionTimeoutKey as CFString,
+                max(1, ceil(deadline.timeIntervalSinceNow)) as CFNumber) == kIOReturnSuccess
         }
         return true
     }
 
-    func holdClosedLid(_ shouldHold: Bool, report: @escaping (String?) -> Void) {
-        guard helperEnabled else {
-            if shouldHold { report("Closed-lid helper is not enabled") }
+    func holdDisplay(until deadline: Date?) -> Bool {
+        if KithTesting.enabled { simulatedDisplay = deadline.map { $0 > Date() } ?? false; return true }
+        guard let deadline, deadline > Date() else {
+            if let id = displayAssertionID {
+                guard IOPMAssertionRelease(id) == kIOReturnSuccess else { return false }
+                displayAssertionID = nil
+            }
+            return true
+        }
+        let timeout = max(1, ceil(deadline.timeIntervalSinceNow)) as CFNumber
+        if let id = displayAssertionID {
+            return IOPMAssertionSetProperty(id, kIOPMAssertionTimeoutKey as CFString, timeout) == kIOReturnSuccess
+        }
+        let properties: [String: Any] = [
+            kIOPMAssertionTypeKey: kIOPMAssertionTypePreventUserIdleDisplaySleep,
+            kIOPMAssertionNameKey: "Kith computer-use display hold",
+            kIOPMAssertionLevelKey: kIOPMAssertionLevelOn,
+            kIOPMAssertionTimeoutKey: timeout,
+            kIOPMAssertionTimeoutActionKey: kIOPMAssertionTimeoutActionTurnOff,
+        ]
+        var id = IOPMAssertionID(0)
+        guard IOPMAssertionCreateWithProperties(properties as CFDictionary, &id) == kIOReturnSuccess else { return false }
+        displayAssertionID = id
+        return true
+    }
+
+    func applyLease(_ request: PowerLeaseRequest?, id: UUID?) {
+        desiredRequest = request
+        desiredLeaseID = id?.uuidString
+        if !helperEnabled {
+            helperStatus.leaseActive = false
+            lastRequest = nil
+            if activeLeaseID != nil {
+                helperStatus.recovery = .needsAttention
+                helperStatus.detail = "Enable the power helper to confirm restoration of its previous settings"
+            }
             return
         }
-        guard !requestInFlight else { return }
-        if shouldHold {
-            if leaseActive && Date().timeIntervalSince(lastRenewal) < 10 { return }
+        driveLease()
+    }
+
+    private func driveLease() {
+        guard helperEnabled, !requestInFlight else { return }
+        if let activeLeaseID, desiredRequest == nil || desiredLeaseID != activeLeaseID {
             requestInFlight = true
-            let renewing = leaseActive
-            call { proxy, reply in
-                if renewing { proxy.renew(leaseID: self.leaseID, withReply: reply) }
-                else { proxy.acquire(leaseID: self.leaseID, withReply: reply) }
-            } completion: { success, message in
+            call({ proxy, reply in proxy.release(leaseID: activeLeaseID, withReply: reply) }) { success, message in
                 self.requestInFlight = false
-                self.leaseActive = success
-                if success {
-                    self.lastRenewal = Date()
-                    if !renewing { self.externalWakeOwner = message == "External wake hold" }
-                }
-                // A lapsed lease, such as after a helper restart, is acquired again on the next tick.
-                else if !renewing { report(message) }
+                if success { self.activeLeaseID = nil; self.lastRequest = nil }
+                else { self.report(message) }
+                self.readStatus { _, _ in }
+                if success { self.driveLease() }
             }
-        } else if leaseActive {
-            requestInFlight = true
-            call { proxy, reply in
-                proxy.release(leaseID: self.leaseID, withReply: reply)
-            } completion: { success, message in
-                self.requestInFlight = false
-                if success {
-                    self.leaseActive = false
-                    self.externalWakeOwner = false
-                }
-                else { report(message) }
-            }
+            return
         }
+        guard let desiredRequest, let id = desiredLeaseID else { return }
+        guard desiredRequest != lastRequest || Date().timeIntervalSince(lastRenewal) >= 10 else { return }
+        guard let data = try? JSONEncoder().encode(desiredRequest) else { return }
+        requestInFlight = true
+        activeLeaseID = id
+        call({ proxy, reply in proxy.configure(leaseID: id, request: data, withReply: reply) }) { success, message in
+            self.requestInFlight = false
+            if success { self.lastRequest = desiredRequest; self.lastRenewal = Date() }
+            else { self.report(message) }
+            self.readStatus { _, _ in }
+            if self.desiredRequest != desiredRequest || self.desiredLeaseID != id { self.driveLease() }
+        }
+    }
+
+    func refreshHelper() {
+        guard helperEnabled else { return }
+        readStatus { success, message in if !success { self.report(message) } }
+    }
+
+    func retryRecovery() {
+        guard helperEnabled else { return }
+        call({ proxy, reply in proxy.retryRecovery(withReply: reply) }) { success, message in
+            if !success { self.report(message) }
+            self.readStatus { _, _ in }
+        }
+    }
+
+    private func report(_ message: String) {
+        helperStatus.recovery = .pending
+        helperStatus.detail = message
+        onError?(message)
     }
 
     func perform(_ action: String, completion: @escaping (Bool, String) -> Void) {
         holdIdleSleep(false)
+        _ = holdDisplay(until: nil)
         call({ proxy, reply in proxy.perform(action: action, withReply: reply) },
              completion: completion)
     }
 
-    func checkHelper(completion: @escaping (Bool, String) -> Void) {
-        call({ proxy, reply in proxy.status(withReply: reply) }, completion: completion)
+    func checkHelper(completion: @escaping (Bool, String) -> Void) { readStatus(completion: completion) }
+
+    private func readStatus(completion: @escaping (Bool, String) -> Void) {
+        let gate = ReplyGate(completion)
+        call({ proxy, reply in
+            let response = HelperCallback(call: reply)
+            proxy.readStatus { @Sendable data in
+                Task { @MainActor in
+                    guard let status = try? JSONDecoder().decode(PowerHelperStatus.self, from: data), status.protocolVersion == 2 else {
+                        gate.finish(false, "Update or re-enable the power helper to use this version of Kith")
+                        response.call(false, "Power helper version mismatch")
+                        return
+                    }
+                    self.helperStatus = status
+                    gate.finish(status.recovery == .restored, status.detail ?? "Power helper ready")
+                    response.call(true, "Status received")
+                }
+            }
+        }) { success, message in if !success { gate.finish(false, message) } }
     }
 
     private func call(
@@ -132,7 +225,7 @@ final class PowerClient {
         completion: @escaping (Bool, String) -> Void
     ) {
         let gate = ReplyGate(completion)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
             gate.finish(false, "Power helper timed out")
         }
         if connection == nil {
