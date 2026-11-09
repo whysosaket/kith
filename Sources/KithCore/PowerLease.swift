@@ -30,14 +30,17 @@ public struct PowerHelperStatus: Codable, Equatable, Sendable {
     public var recovery: RecoveryState
     public var detail: String?
     public var deadline: Date?
+    public var leaseID: String?
 
     public init(leaseActive: Bool = false, externalWakeOwner: Bool = false,
-                recovery: RecoveryState = .restored, detail: String? = nil, deadline: Date? = nil) {
+                recovery: RecoveryState = .restored, detail: String? = nil, deadline: Date? = nil,
+                leaseID: String? = nil) {
         self.leaseActive = leaseActive
         self.externalWakeOwner = externalWakeOwner
         self.recovery = recovery
         self.detail = detail
         self.deadline = deadline
+        self.leaseID = leaseID
     }
 }
 
@@ -84,7 +87,7 @@ public final class PowerLeaseController: @unchecked Sendable {
         PowerHelperStatus(leaseActive: lease != nil && issue == nil,
                           externalWakeOwner: lease.map { $0.previousDisabled && !$0.changedByKith } ?? false,
                           recovery: unreadable ? .needsAttention : issue == nil ? .restored : .pending,
-                          detail: issue, deadline: lease?.hardDeadline)
+                          detail: issue, deadline: lease?.hardDeadline, leaseID: lease?.leaseID)
     }
 
     public func recoverAfterRestart() {

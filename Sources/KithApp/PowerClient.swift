@@ -40,7 +40,10 @@ final class PowerClient {
         !KithTesting.enabled && SMAppService.daemon(plistName: PowerService.plistName).status == .enabled
     }
     var idleHoldActive: Bool { KithTesting.enabled ? simulatedIdle : assertionID != nil }
-    var closedLidReady: Bool { helperEnabled && helperStatus.leaseActive && desiredRequest?.closedLid == true }
+    var closedLidReady: Bool {
+        helperEnabled && helperStatus.leaseActive && desiredRequest?.closedLid == true &&
+            activeLeaseID != nil && helperStatus.leaseID == activeLeaseID && activeLeaseID == desiredLeaseID
+    }
     var displayHoldActive: Bool { KithTesting.enabled ? simulatedDisplay : displayAssertionID != nil }
 
     func registerHelper() throws {

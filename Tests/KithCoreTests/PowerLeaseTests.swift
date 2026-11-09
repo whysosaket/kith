@@ -45,12 +45,14 @@ struct PowerLeaseTests {
         try controller.configure(id: id, uid: 501,
             request: PowerLeaseRequest(deadline: clock.date.addingTimeInterval(600), closedLid: true, lowPower: true))
         #expect(hardware.disabled)
+        #expect(controller.status.leaseID == id)
         #expect(hardware.modes == ["b": true, "c": true])
         clock.date.addTimeInterval(46)
         controller.expireIfNeeded()
         #expect(!hardware.disabled)
         #expect(hardware.modes == ["b": false, "c": true])
         #expect(controller.status.recovery == .restored)
+        #expect(controller.status.leaseID == nil)
         #expect(!FileManager.default.fileExists(atPath: hardware.stateURL!.path))
     }
 
