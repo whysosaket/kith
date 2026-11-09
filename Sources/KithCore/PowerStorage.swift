@@ -48,9 +48,16 @@ public enum PowerStorage {
     public static func lock(at url: URL) throws -> FileHandle {
         let descriptor = open(url.path, O_RDWR | O_CREAT | O_NOFOLLOW | O_CLOEXEC, 0o600)
         guard descriptor >= 0 else { throw PowerError.unavailable("Cannot open recovery lock") }
-        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
-            close(descriptor)
-            throw PowerError.unavailable("Recovery pending: a power operation is still running")
+        // A child between fork and exec can briefly retain a close-on-exec
+        // descriptor. Tolerate that window without waiting on a stuck writer.
+        let deadline = ProcessInfo.processInfo.systemUptime + 0.25
+        while flock(descriptor, LOCK_EX | LOCK_NB) != 0 {
+            let retryable = errno == EWOULDBLOCK || errno == EAGAIN || errno == EINTR
+            guard retryable, ProcessInfo.processInfo.systemUptime < deadline else {
+                close(descriptor)
+                throw PowerError.unavailable("Recovery pending: a power operation is still running")
+            }
+            Thread.sleep(forTimeInterval: 0.01)
         }
         return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
     }
