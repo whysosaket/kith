@@ -7,11 +7,13 @@ let package = Package(
     products: [
         .executable(name: "KithApp", targets: ["KithApp"]),
         .executable(name: "kith-event", targets: ["KithEvent"]),
+        .executable(name: "kith", targets: ["KithCLI"]),
         .executable(name: "KithPowerHelper", targets: ["KithPowerHelper"])
     ],
     targets: [
         .target(name: "KithCore", linkerSettings: [.linkedLibrary("sqlite3")]),
         .executableTarget(name: "KithEvent", dependencies: ["KithCore"]),
+        .executableTarget(name: "KithCLI", dependencies: ["KithCore"]),
         .executableTarget(name: "KithApp", dependencies: ["KithCore"]),
         .executableTarget(name: "KithPowerHelper", dependencies: ["KithCore"]),
         .testTarget(name: "KithCoreTests", dependencies: ["KithCore"])

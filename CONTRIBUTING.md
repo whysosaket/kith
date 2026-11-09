@@ -9,6 +9,7 @@ You need the macOS 26 SDK from Xcode 26 or Command Line Tools 26. Command Line T
 ```sh
 scripts/create-signing-identity.sh   # once, so permissions survive rebuilds
 scripts/test.sh                      # unit tests + smoke checks
+scripts/test-power-e2e.sh             # isolated debug app + CLI integration scenarios
 scripts/build-app.sh                 # dist/Kith.app
 ```
 
@@ -27,6 +28,7 @@ scripts/build-app.sh                 # dist/Kith.app
 - Keep each PR to one change. Match the surrounding code style.
 - Add or update a test in `Tests/` for any change to `KithCore`.
 - Run `scripts/test.sh` and `scripts/build-app.sh` before opening the PR.
+- For power changes, run `scripts/test-power-e2e.sh`; state the distinction between simulated OS effects and real-hardware checks in the PR. The fixture environment is debug-only and never permits privileged operations.
 - For changes to how Kith reads Claude Code or Codex state, say which agent versions you tested.
 - Changes to the power helper, hooks or event socket get extra review. Explain the safety impact in the PR.
 

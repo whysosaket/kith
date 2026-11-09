@@ -14,6 +14,9 @@ jobs:
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
       - name: Test
         run: scripts/test.sh
+      - name: Power workflows end to end
+        timeout-minutes: 5
+        run: scripts/test-power-e2e.sh
       - name: Package universal app
         run: scripts/package-release.sh
       - name: Check Xcode project matches project.yml
@@ -21,3 +24,12 @@ jobs:
           brew install xcodegen
           xcodegen generate
           git diff --exit-code Kith.xcodeproj Resources/Kith-Info.plist
+      - name: Upload power workflow results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: power-workflow-results
+          path: |
+            .build/power-e2e-results.json
+            .build/power-e2e-app.log
+          if-no-files-found: ignore

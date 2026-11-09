@@ -8,6 +8,8 @@ It watches four surfaces: Claude Code in the terminal, Claude Code inside Claude
 - **Notifications.** "Needs input", "Finished" and "Failed" alerts say which session and why, such as "Approve Bash · Claude CLI". Each one has an Open button for the terminal, Claude or the Codex thread.
 - **Keep awake.** Kith holds idle sleep while agents work and for a few minutes after. With the optional privileged helper, it can also keep the Mac awake with the lid closed.
 - **Finish actions.** Kith can put the Mac to sleep or shut it down once all work is done, after a cancelable 60-second countdown.
+- **Bounded awake periods.** Automatic protection lasts until work and its grace period end, up to a configurable maximum (four hours by default). Manual periods cover other tasks. Extend or end either from Power settings or the bundled CLI.
+- **Power guardrails.** Low battery and critical heat stop wake protection until you explicitly resume. Optional display wake, energy saving, lid-close audio muting, and network warnings support unattended work.
 
 Kith never reports work as finished while it can't confirm a session's state. Monitoring problems stay visible in the panel.
 
@@ -64,7 +66,7 @@ The closed-lid helper only accepts a Kith app signed like the helper: by the sam
 
 ## Privacy
 
-Kith makes no network requests. Everything stays on your Mac.
+Session monitoring and power controls stay on your Mac. Network-availability monitoring observes the system's network path without sending connectivity probes. If you click **Check for updates** in Settings → General, Kith requests the latest stable release from GitHub's public API. That request sends a fixed Kith user agent and no session, prompt, project, or device data. Kith never checks automatically and never downloads or installs updates.
 
 To work out session state, Kith **reads**:
 
@@ -74,15 +76,43 @@ To work out session state, Kith **reads**:
 - the last 256 KB of the current Codex rollout file (`~/.codex/sessions/**`), where it looks only at event types and call IDs
 - button titles in Codex Desktop windows, if you grant Accessibility
 
-Kith **stores** only session IDs, statuses and timestamps (`sessions.json`), plus the IDs of notifications it already sent (`state.json`). Both are in `~/Library/Application Support/Kith`. It doesn't save prompts, transcripts, tool arguments or credentials.
+For agent monitoring, Kith **stores** session IDs, statuses and timestamps (`sessions.json`), plus the IDs of notifications it already sent (`state.json`). Both are in `~/Library/Application Support/Kith`. It doesn't save prompts, transcripts, tool arguments or credentials.
+
+Power controls additionally store preferences (`power-preferences.json`), the current wake period and stop reason (`power.json`), saved audio-device identities (`audio-recovery.json`), and up to 200 local diagnostic entries (`power-diagnostics.json`). These files are private to your account. Diagnostics describe power operations and errors, without agent prompts or browser command lines. Review copied diagnostics before sharing them.
 
 Notification text includes session titles and project folder names. Agents often generate titles from your first prompt. macOS keeps notifications in Notification Center and may show them on the lock screen, so adjust Kith's notification settings in System Settings if that matters to you.
 
 ## Power and safety
 
 - **Idle sleep.** While any session is working, and for the extra time set in Settings, Kith holds a standard power assertion that stops idle sleep.
-- **Closed lid.** The privileged helper runs as root and temporarily sets macOS's global `SleepDisabled` flag through `pmset`. It only takes this on a 45-second lease that the app keeps renewing, and restores the previous value when the lease ends or the app crashes. Don't run another closed-lid utility at the same time.
+- **Deadlines.** A wake period defaults to four hours and can be configured from one to 24 hours. A five-minute reminder offers time to extend it in Power. New turns, waiting prompts, and extra awake time cannot reset that period's deadline. Maximum-duration setting changes apply to the next period. System and display assertions time out at the deadline, and the helper independently caps its lease at that deadline. An expired period remains stopped across app restarts until you resume.
+- **Battery and heat.** Warnings start at 20% battery and serious heat. On battery, protection stops at 10% by default; choose 5%, 10%, or 15% in Power. Two consecutive unreadable battery observations also stop protection on battery; the second read occurs after 30 seconds if no battery event arrives. A Mac without a battery is exempt from battery rules. Critical heat stops protection on AC and battery. Plugging in or cooling down does not resume it automatically. These rules require the app to remain responsive; a timer is not a guarantee of safe unattended operation.
+- **Closed lid.** The privileged helper runs as root and temporarily sets macOS's global `SleepDisabled` flag through `pmset`. It uses a renewable 45-second lease, restores the previous value on expiry or helper restart, and preserves a pre-existing external wake hold. Don't run another closed-lid utility at the same time. If the helper cannot confirm restoration, Kith keeps a visible recovery warning and offers Retry. A stalled command can delay restoration and retains its recovery lock.
+- **Display wake.** Optional computer-use mode holds the display awake within the same deadline. It can leave the screen unlocked; it does not bypass an explicit lock or guarantee that UI automation works with the lid closed.
+- **Energy saving.** With the helper enabled, optional Low Power Mode activates below 40% battery, at serious heat, or optionally with the lid closed. It can reduce performance. Kith records the affected AC and battery preferences before changing them and restores the settings it owns. A user turning the mode off during a period relinquishes Kith's ownership for that power source.
+- **Audio.** Optional lid-close muting affects the current output when it provides a software mute control, preserving its device identity before muting. Unsupported outputs show an error and stay unchanged. Opening the lid, ending protection, or reopening Kith restores connected outputs. Disconnected outputs remain listed until they reconnect while Kith is open. **Stop waiting** drops that saved entry and leaves the device unchanged. The root helper cannot restore user audio after an app crash; reopen Kith.
+- **Connectivity and browsers.** Optional network warnings appear after five seconds without an available network path during active work, and clear on recovery. An available path does not establish that an agent service is reachable. Browser diagnostics inspect launch options of supported running browsers for background throttling; they never quit or relaunch a browser.
 - **Finish actions.** Sleep and shutdown are one-shot. They start a cancelable 60-second countdown only after every monitored session is confirmed finished, and a new turn cancels it. Shutdown can lose unsaved work in other apps, so save first. These actions stay locked until you run the checks in [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) on your Mac and switch them on in Settings. That switch is your own sign-off; Kith can't verify it.
+
+Protective stops release Kith's wake holds; they do not terminate agents, mark sessions finished, or force sleep. Another app's wake assertion can still keep the Mac awake. Starting a manual period cancels an armed finish action, and manual periods, protective stops, or unresolved recovery block arming a new one.
+
+## Power CLI and startup
+
+The app bundles `kith` at `/Applications/Kith.app/Contents/MacOS/kith`. Run it by that path or add an alias in your shell configuration. Kith must be open:
+
+```sh
+/Applications/Kith.app/Contents/MacOS/kith power status --json
+/Applications/Kith.app/Contents/MacOS/kith power start --for 2h
+/Applications/Kith.app/Contents/MacOS/kith power extend --for 30m
+/Applications/Kith.app/Contents/MacOS/kith power end
+/Applications/Kith.app/Contents/MacOS/kith power resume
+```
+
+Durations accept whole seconds, minutes, or hours, from `1s` through `24h`. Commands return an acknowledgment and exit nonzero on failure. Status distinguishes requested protection from actual system/display holds and helper recovery. The CLI cannot arm sleep or shutdown. Requests expire after eight seconds so an abandoned request is not applied later; if an acknowledgment is lost, check status before retrying.
+
+Settings → General includes **Launch Kith at login** and **Check for updates**. Disabling the login item in macOS Settings is respected. Update checks open a release page only when requested.
+
+Advanced: `KITH_HOME` changes the app's support directory and CLI inbox; set it consistently for both processes. It does not relocate or sandbox the privileged helper, which still uses `/var/db/kith-power-state.json`.
 
 ## Compatibility
 
@@ -97,6 +127,8 @@ Claude Code and Codex don't publish a stable API for session state, so Kith reli
 When one of these changes, Kith marks that surface **unavailable**, blocks finish actions, and never assumes the work is done. Please [open an issue](https://github.com/whysosaket/kith/issues) when that happens.
 
 ## Uninstall
+
+End awake protection, retry any pending recovery, and restore or stop waiting for disconnected audio outputs before removing the app. Disable Launch Kith at login in General if enabled. If the power helper cannot confirm restoration, keep it installed and resolve the warning first.
 
 1. Settings → Monitoring → **Remove hooks**.
 2. Settings → Power → disable the helper, if you enabled it.
@@ -113,11 +145,14 @@ When one of these changes, Kith marks that surface **unavailable**, blocks finis
 ```sh
 scripts/test.sh        # unit tests (Swift Testing) + core smoke checks
 scripts/build-app.sh   # app bundle in dist/
+scripts/test-power-e2e.sh # debug app + CLI workflows with isolated state and simulated OS effects
 scripts/package-release.sh # universal app DMG, ZIP and checksums in dist/
 xcodegen generate      # regenerate Kith.xcodeproj after editing project.yml
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for details. Report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+Power E2E tests do not change real sleep settings, audio, network connections, or login items. Debug fault injection requires both `KITH_E2E=1` and a `/tmp/kith-e2e-*` support path and is unavailable in release builds. Real-hardware checks remain in [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md). To use an explicitly selected local build system, set `KITH_BUILD_SYSTEM`; `SDKROOT` can select an installed compatible SDK.
 
 ## License
 

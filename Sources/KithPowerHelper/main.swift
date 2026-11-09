@@ -4,176 +4,134 @@ import KithCore
 import Security
 import SystemConfiguration
 
-private struct SavedLease: Codable {
-    var leaseID: String
-    var previousDisabled: Bool
-    var changedByKith: Bool
-    var expiresAt: Date
-}
+private final class MacPowerHardware: PowerHardware, @unchecked Sendable {
+    let commands = BoundedCommand()
 
-private struct XPCReply: @unchecked Sendable {
-    let call: (Bool, String) -> Void
-}
-
-private final class PowerController: NSObject, PowerServiceProtocol, @unchecked Sendable {
-    private let stateURL = URL(fileURLWithPath: "/var/db/kith-power-state.json")
-    private let queue = DispatchQueue(label: "\(PowerService.name).state")
-    private var lease: SavedLease?
-
-    override init() {
-        super.init()
-        recoverAfterRestart()
-        let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now() + 5, repeating: 5)
-        timer.setEventHandler { [weak self] in self?.expireIfNeeded() }
-        timer.resume()
-        self.timer = timer
-    }
-
-    private var timer: DispatchSourceTimer?
-
-    func status(withReply reply: @escaping (Bool, String) -> Void) {
-        let response = XPCReply(call: reply)
-        queue.async {
-            guard let disabled = self.sleepDisabled() else { response.call(false, "Cannot read SleepDisabled"); return }
-            response.call(true, "SleepDisabled=\(disabled ? 1 : 0); lease=\(self.lease == nil ? "none" : "active")")
-        }
-    }
-
-    func acquire(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
-        let response = XPCReply(call: reply)
-        queue.async {
-            guard UUID(uuidString: leaseID) != nil else { response.call(false, "Invalid lease ID"); return }
-            if var existing = self.lease {
-                guard existing.leaseID == leaseID else { response.call(false, "Another Kith lease is active"); return }
-                existing.expiresAt = Date().addingTimeInterval(45)
-                self.lease = existing
-                response.call(self.save(existing), existing.changedByKith ? "Kith owns wake hold" : "External wake hold")
-                return
-            }
-            guard let previous = self.sleepDisabled() else { response.call(false, "Cannot read SleepDisabled"); return }
-            let changed = !previous
-            let saved = SavedLease(leaseID: leaseID, previousDisabled: previous,
-                changedByKith: changed, expiresAt: Date().addingTimeInterval(45))
-            guard self.save(saved) else { response.call(false, "Cannot save wake lease"); return }
-            self.lease = saved
-            if changed && (!self.pmset(disableSleep: true) || self.sleepDisabled() != true) {
-                _ = self.restore(saved)
-                response.call(false, "Could not enable closed-lid wake")
-                return
-            }
-            response.call(true, changed ? "Kith owns wake hold" : "External wake hold")
-        }
-    }
-
-    func renew(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
-        let response = XPCReply(call: reply)
-        queue.async {
-            guard var lease = self.lease, lease.leaseID == leaseID else {
-                response.call(false, "Lease not active"); return
-            }
-            lease.expiresAt = Date().addingTimeInterval(45)
-            self.lease = lease
-            response.call(self.save(lease), "Renewed")
-        }
-    }
-
-    func release(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
-        let response = XPCReply(call: reply)
-        queue.async {
-            guard let lease = self.lease, lease.leaseID == leaseID else {
-                response.call(false, "Lease not active"); return
-            }
-            response.call(self.restore(lease), "Released")
-        }
-    }
-
-    func perform(action: String, withReply reply: @escaping (Bool, String) -> Void) {
-        let response = XPCReply(call: reply)
-        queue.async {
-            guard action == "sleep" || action == "shutdown" else {
-                response.call(false, "Unsupported action"); return
-            }
-            if let lease = self.lease, !self.restore(lease) {
-                response.call(false, "Could not restore sleep setting"); return
-            }
-            let executable = action == "sleep" ? "/usr/bin/pmset" : "/sbin/shutdown"
-            let arguments = action == "sleep" ? ["sleepnow"] : ["-h", "now"]
-            let launched = self.launch(executable, arguments)
-            response.call(launched, launched ? "Requested \(action)" : "Could not launch \(action)")
-        }
-    }
-
-    private func expireIfNeeded() {
-        guard let lease, Date() >= lease.expiresAt else { return }
-        _ = restore(lease)
-    }
-
-    @discardableResult
-    private func restore(_ lease: SavedLease) -> Bool {
-        if lease.changedByKith {
-            guard pmset(disableSleep: lease.previousDisabled),
-                  sleepDisabled() == lease.previousDisabled else { return false }
-        }
-        self.lease = nil
-        try? FileManager.default.removeItem(at: stateURL)
-        return true
-    }
-
-    private func recoverAfterRestart() {
-        guard let data = try? Data(contentsOf: stateURL),
-              let saved = try? JSONDecoder().decode(SavedLease.self, from: data) else { return }
-        lease = saved
-        _ = restore(saved)
-    }
-
-    @discardableResult
-    private func save(_ lease: SavedLease) -> Bool {
-        do {
-            let data = try JSONEncoder().encode(lease)
-            try data.write(to: stateURL, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o600],
-                ofItemAtPath: stateURL.path)
-            return true
-        } catch { return false }
-    }
-
-    private func sleepDisabled() -> Bool? {
-        guard let output = run("/usr/bin/pmset", ["-g"]) else { return nil }
-        for line in output.split(separator: "\n") where line.contains("SleepDisabled") {
+    func sleepDisabled() throws -> Bool {
+        let text = try run(["-g"])
+        for line in text.split(separator: "\n") where line.contains("SleepDisabled") {
             if line.split(whereSeparator: \.isWhitespace).last == "1" { return true }
             if line.split(whereSeparator: \.isWhitespace).last == "0" { return false }
         }
-        return nil
+        throw PowerError.unavailable("Cannot read SleepDisabled")
     }
 
-    private func pmset(disableSleep: Bool) -> Bool {
-        run("/usr/bin/pmset", ["-a", "disablesleep", disableSleep ? "1" : "0"]) != nil
+    func lowPowerSettings() throws -> [String: Bool] {
+        let text = try run(["-g", "custom"])
+        var source: String?
+        var settings: [String: Bool] = [:]
+        for line in text.split(separator: "\n") {
+            if line.contains("Battery Power:") { source = "b" }
+            else if line.contains("AC Power:") { source = "c" }
+            else if line.contains("Power:") { source = nil }
+            else if let source {
+                let words = line.split(whereSeparator: \.isWhitespace)
+                if words.first == "lowpowermode", let value = words.last, ["0", "1"].contains(value) {
+                    settings[source] = value == "1"
+                }
+            }
+        }
+        return settings
     }
 
-    private func run(_ executable: String, _ arguments: [String]) -> String? {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.standardOutput = output
-        process.standardError = Pipe()
-        do {
+    func setSleepDisabled(_ value: Bool, lock: FileHandle) throws {
+        _ = try run(["-a", "disablesleep", value ? "1" : "0"], lock: lock)
+    }
+
+    func setLowPower(_ value: Bool, source: String, lock: FileHandle) throws {
+        guard ["b", "c"].contains(source) else { throw PowerError.invalid("Invalid power source in recovery state") }
+        _ = try run(["-" + source, "lowpowermode", value ? "1" : "0"], lock: lock)
+    }
+
+    private func run(_ arguments: [String], lock: FileHandle? = nil) throws -> String {
+        let result = try commands.run("/usr/bin/pmset", arguments, inheritedLock: lock)
+        guard result.status == 0 else { throw PowerError.unavailable("Power command failed (exit \(result.status))") }
+        return result.output
+    }
+}
+
+private struct XPCReply: @unchecked Sendable { let call: (Bool, String) -> Void }
+private struct XPCDataReply: @unchecked Sendable { let call: (Data) -> Void }
+
+private final class PowerController: @unchecked Sendable {
+    let queue = DispatchQueue(label: "\(PowerService.name).state")
+    let leases = PowerLeaseController(stateURL: URL(fileURLWithPath: "/var/db/kith-power-state.json"),
+        lockURL: URL(fileURLWithPath: "/var/db/kith-power.lock"), hardware: MacPowerHardware())
+    private var timer: DispatchSourceTimer?
+
+    init() {
+        queue.async { self.leases.recoverAfterRestart() }
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 5, repeating: 5)
+        timer.setEventHandler { [weak self] in self?.leases.expireIfNeeded() }
+        timer.resume()
+        self.timer = timer
+    }
+}
+
+private final class PowerConnection: NSObject, PowerServiceProtocol, @unchecked Sendable {
+    let controller: PowerController
+    let uid: UInt32
+    init(controller: PowerController, uid: UInt32) { self.controller = controller; self.uid = uid }
+
+    func status(withReply reply: @escaping (Bool, String) -> Void) {
+        let response = XPCReply(call: reply)
+        controller.queue.async {
+            let status = self.controller.leases.status
+            response.call(status.recovery == .restored, status.detail ?? "Power helper ready")
+        }
+    }
+
+    func readStatus(withReply reply: @escaping (Data) -> Void) {
+        let response = XPCDataReply(call: reply)
+        controller.queue.async { response.call((try? JSONEncoder().encode(self.controller.leases.status)) ?? Data()) }
+    }
+
+    func configure(leaseID: String, request: Data, withReply reply: @escaping (Bool, String) -> Void) {
+        operation(reply) {
+            guard request.count <= 4096 else { throw PowerError.invalid("Wake request is too large") }
+            let configuration = try JSONDecoder().decode(PowerLeaseRequest.self, from: request)
+            try self.controller.leases.configure(id: leaseID, uid: self.uid, request: configuration)
+        }
+    }
+
+    // Legacy entry points retain the short lease behavior for an older app.
+    func acquire(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
+        operation(reply) {
+            try self.controller.leases.configure(id: leaseID, uid: self.uid,
+                request: PowerLeaseRequest(deadline: Date().addingTimeInterval(45), closedLid: true, lowPower: false))
+        }
+    }
+    func renew(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) { acquire(leaseID: leaseID, withReply: reply) }
+    func release(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
+        operation(reply) { try self.controller.leases.release(id: leaseID, uid: self.uid) }
+    }
+    func retryRecovery(withReply reply: @escaping (Bool, String) -> Void) {
+        let response = XPCReply(call: reply)
+        controller.queue.async {
+            self.controller.leases.retryRecovery()
+            let status = self.controller.leases.status
+            response.call(status.recovery == .restored, status.detail ?? "Recovery complete")
+        }
+    }
+    func perform(action: String, withReply reply: @escaping (Bool, String) -> Void) {
+        operation(reply) {
+            guard ["sleep", "shutdown"].contains(action) else { throw PowerError.invalid("Unsupported action") }
+            try self.controller.leases.prepareForFinishAction(uid: self.uid)
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: action == "sleep" ? "/usr/bin/pmset" : "/sbin/shutdown")
+            process.arguments = action == "sleep" ? ["sleepnow"] : ["-h", "now"]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
             try process.run()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else { return nil }
-            return String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
-        } catch { return nil }
+        }
     }
-
-    private func launch(_ executable: String, _ arguments: [String]) -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        do { try process.run(); return true }
-        catch { return false }
+    private func operation(_ reply: @escaping (Bool, String) -> Void, work: @escaping @Sendable () throws -> Void) {
+        let response = XPCReply(call: reply)
+        controller.queue.async {
+            do { try work(); response.call(true, "Power request completed") }
+            catch { response.call(false, error.localizedDescription) }
+        }
     }
 }
 
@@ -201,7 +159,7 @@ private final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
         guard connection.effectiveUserIdentifier != 0, let clientRequirement else { return false }
         connection.setCodeSigningRequirement(clientRequirement)
         connection.exportedInterface = NSXPCInterface(with: PowerServiceProtocol.self)
-        connection.exportedObject = controller
+        connection.exportedObject = PowerConnection(controller: controller, uid: connection.effectiveUserIdentifier)
         connection.resume()
         return true
     }

@@ -33,7 +33,9 @@ struct KithSettingsPage: View {
                 KithPowerPage()
             } else {
                 ScrollView {
-                    if model.settingsPane == .monitoring {
+                    if model.settingsPane == .general {
+                        GeneralSettings(workflow: model.workflow)
+                    } else if model.settingsPane == .monitoring {
                         MonitoringSettings()
                     } else {
                         NotificationSettings()
@@ -127,5 +129,29 @@ private struct NotificationSettings: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct GeneralSettings: View {
+    @ObservedObject var workflow: WorkflowSettings
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            KithSection("Startup") {
+                Toggle("Launch Kith at login", isOn: Binding(get: { workflow.launchAtLogin }, set: { workflow.setLaunchAtLogin($0) }))
+                if let message = workflow.loginMessage { Text(message).font(.caption).foregroundStyle(.secondary) }
+            }
+            Divider()
+            KithSection("Updates") {
+                LabeledContent("Installed version", value: workflow.version)
+                Button(workflow.checkingUpdates ? "Checking…" : "Check for updates") { workflow.checkUpdates() }
+                    .disabled(workflow.checkingUpdates).buttonStyle(.bordered)
+                Text(workflow.updateMessage).font(.caption).foregroundStyle(.secondary)
+                if let url = workflow.releaseURL { Link("View release", destination: url) }
+                Text("Checking sends a request to GitHub. Kith does not download or install updates.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear { workflow.refreshLogin() }
     }
 }

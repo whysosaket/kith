@@ -4,9 +4,13 @@ set -euo pipefail
 repo_root="${0:A:h:h}"
 bundle_id=app.trykith.kith
 cd "$repo_root"
-swift build -c release
+build_flags=()
+if [[ -n "${KITH_BUILD_SYSTEM:-}" ]]; then
+    build_flags+=(--build-system "$KITH_BUILD_SYSTEM")
+fi
+swift build "${build_flags[@]}" -c release
 
-binary_dir="$(swift build -c release --show-bin-path)"
+binary_dir="$(swift build "${build_flags[@]}" -c release --show-bin-path)"
 if [[ "${KITH_UNIVERSAL:-0}" == "1" ]]; then
     case "$(uname -m)" in
         arm64) other_arch=x86_64 ;;
@@ -14,8 +18,8 @@ if [[ "${KITH_UNIVERSAL:-0}" == "1" ]]; then
         *) echo "Unsupported Mac architecture" >&2; exit 1 ;;
     esac
     cross_build_path="$repo_root/.build/release-$other_arch"
-    swift build -c release --triple "$other_arch-apple-macosx14.0" --scratch-path "$cross_build_path"
-    other_binary_dir="$(swift build -c release --triple "$other_arch-apple-macosx14.0" \
+    swift build "${build_flags[@]}" -c release --triple "$other_arch-apple-macosx14.0" --scratch-path "$cross_build_path"
+    other_binary_dir="$(swift build "${build_flags[@]}" -c release --triple "$other_arch-apple-macosx14.0" \
         --scratch-path "$cross_build_path" --show-bin-path)"
 fi
 
@@ -33,13 +37,14 @@ plutil -replace LSUIElement -bool YES "$app_dir/Contents/Info.plist"
 plutil -replace NSHighResolutionCapable -bool YES "$app_dir/Contents/Info.plist"
 cp "Resources/$bundle_id.power.plist" "$app_dir/Contents/Library/LaunchDaemons/"
 cp Resources/Kith.icns Resources/KithMenuBarTemplate.png "$app_dir/Contents/Resources/"
-cp "$binary_dir/KithApp" "$binary_dir/kith-event" "$binary_dir/KithPowerHelper" "$app_dir/Contents/MacOS/"
+cp "$binary_dir/KithApp" "$binary_dir/kith-event" "$binary_dir/kith" "$binary_dir/KithPowerHelper" "$app_dir/Contents/MacOS/"
 if [[ "${KITH_UNIVERSAL:-0}" == "1" ]]; then
-    for executable in KithApp kith-event KithPowerHelper; do
+    for executable in KithApp kith-event kith KithPowerHelper; do
         lipo -create "$app_dir/Contents/MacOS/$executable" "$other_binary_dir/$executable" \
             -output "$app_dir/Contents/MacOS/$executable.universal"
         mv "$app_dir/Contents/MacOS/$executable.universal" "$app_dir/Contents/MacOS/$executable"
-        lipo "$app_dir/Contents/MacOS/$executable" -verify_arch arm64 x86_64
+        lipo "$app_dir/Contents/MacOS/$executable" -verify_arch arm64
+        lipo "$app_dir/Contents/MacOS/$executable" -verify_arch x86_64
     done
 fi
 
@@ -57,6 +62,7 @@ else
 fi
 codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id.power" "$app_dir/Contents/MacOS/KithPowerHelper"
 codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id.event" "$app_dir/Contents/MacOS/kith-event"
+codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id.cli" "$app_dir/Contents/MacOS/kith"
 codesign "${sign_flags[@]}" --sign "$identity" --identifier "$bundle_id" \
     --entitlements Resources/Kith.entitlements "$app_dir"
 codesign --verify --deep --strict "$app_dir"

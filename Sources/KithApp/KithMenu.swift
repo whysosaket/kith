@@ -42,6 +42,7 @@ struct KithMenu: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     KithHealthView()
+            KithPowerHealthView()
                     KithMessageView()
 
                     if !model.attentionSessions.isEmpty {

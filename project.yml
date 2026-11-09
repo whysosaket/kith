@@ -30,6 +30,16 @@ targets:
       base:
         PRODUCT_NAME: kith-event
         PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith.event
+  KithCLI:
+    type: tool
+    platform: macOS
+    sources: [Sources/KithCLI]
+    dependencies:
+      - target: KithCore
+    settings:
+      base:
+        PRODUCT_NAME: kith
+        PRODUCT_BUNDLE_IDENTIFIER: app.trykith.kith.cli
   KithPowerHelper:
     type: tool
     platform: macOS
@@ -55,6 +65,12 @@ targets:
     dependencies:
       - target: KithCore
       - target: KithEvent
+        embed: true
+        link: false
+        codeSign: true
+        copy:
+          destination: executables
+      - target: KithCLI
         embed: true
         link: false
         codeSign: true
