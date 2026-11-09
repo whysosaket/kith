@@ -167,4 +167,20 @@ struct PowerLeaseTests {
         #expect(!hardware.disabled)
         #expect(controller.status.recovery == .restored)
     }
+
+    @Test func malformedRecoveryFieldsArePreservedWithoutPartialRestoration() throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let state = dir.appendingPathComponent("state")
+        let data: [String: Any] = ["leaseID": UUID().uuidString, "previousDisabled": false,
+            "changedByKith": true, "expiresAt": Date().timeIntervalSinceReferenceDate + 45,
+            "previousLowPower": ["unexpected-source": false]]
+        let bytes = try JSONSerialization.data(withJSONObject: data)
+        try bytes.write(to: state)
+        let hardware = FakePowerHardware(); hardware.disabled = true
+        let controller = PowerLeaseController(stateURL: state, lockURL: dir.appendingPathComponent("lock"), hardware: hardware)
+        controller.recoverAfterRestart()
+        #expect(controller.status.recovery == .needsAttention)
+        #expect(hardware.writes == 0)
+        #expect(try Data(contentsOf: state) == bytes)
+    }
 }

@@ -208,6 +208,14 @@ public final class PowerLeaseController: @unchecked Sendable {
     private func load() throws {
         do {
             lease = try PowerStorage.read(PowerLeaseRecord.self, from: stateURL)
+            if let lease {
+                let sources = Set(lease.previousLowPower?.keys.map { $0 } ?? [])
+                guard UUID(uuidString: lease.leaseID) != nil,
+                      !(lease.changedByKith && lease.previousDisabled),
+                      sources.isSubset(of: Set(["b", "c"])) else {
+                    throw PowerError.invalid("Recovery state has invalid ownership or power-source fields")
+                }
+            }
             unreadable = false
         } catch {
             unreadable = true
