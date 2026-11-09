@@ -25,6 +25,7 @@ public final class AudioRecovery {
     private let hardware: any AudioHardware
     private let stateURL: URL
     private var unreadable = false
+    private var restored: Set<UUID> = []
 
     public init(hardware: any AudioHardware, stateURL: URL) {
         self.hardware = hardware; self.stateURL = stateURL
@@ -49,21 +50,28 @@ public final class AudioRecovery {
 
     public func restore() {
         guard !unreadable else { return }
-        guard !pending.isEmpty else { issue = nil; return }
+        guard !pending.isEmpty else { issue = nil; restored.removeAll(); return }
         do {
             let connected = Set(try hardware.outputs().map(\.uid))
             var remaining = pending
             var failures: [String] = []
-            for saved in pending where connected.contains(saved.uid) {
+            for saved in pending {
+                if restored.contains(saved.id) {
+                    remaining.removeAll { $0.id == saved.id }
+                    continue
+                }
+                guard connected.contains(saved.uid) else { continue }
                 do {
                     if try hardware.isMuted(uid: saved.uid) { try hardware.setMuted(false, uid: saved.uid) }
                     guard try !hardware.isMuted(uid: saved.uid) else { throw PowerError.unavailable("Audio is still muted") }
+                    restored.insert(saved.id)
                     remaining.removeAll { $0.id == saved.id }
                 } catch { failures.append("Could not restore \(saved.name)") }
             }
             if remaining != pending {
                 try PowerStorage.write(remaining, to: stateURL)
                 pending = remaining
+                restored.formIntersection(Set(pending.map(\.id)))
             }
             issue = failures.isEmpty ? nil : failures.joined(separator: "; ")
         } catch { issue = error.localizedDescription }
@@ -77,5 +85,6 @@ public final class AudioRecovery {
         let next = pending.filter { $0.id != id }
         try PowerStorage.write(next, to: stateURL)
         pending = next
+        restored.remove(id)
     }
 }

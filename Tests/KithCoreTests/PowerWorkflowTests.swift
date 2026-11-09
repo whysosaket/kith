@@ -8,6 +8,7 @@ final class FakeAudioHardware: AudioHardware {
     var muted = ["speaker": false, "headset": false]
     var failure = false
     var unreadable = false
+    var onSet: ((Bool, String) throws -> Void)?
     func outputs() throws -> [AudioOutput] { connected }
     func defaultOutput() throws -> AudioOutput? { connected.first { $0.uid == current } }
     func isMuted(uid: String) throws -> Bool {
@@ -17,10 +18,38 @@ final class FakeAudioHardware: AudioHardware {
     func setMuted(_ muted: Bool, uid: String) throws {
         if failure { throw PowerError.unavailable("Output refused mute") }
         self.muted[uid] = muted
+        try onSet?(muted, uid)
     }
 }
 
 struct PowerWorkflowTests {
+    @Test func failedJournalClearDoesNotOverwriteLaterUserMute() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("kith-audio-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("state")
+        let hardware = FakeAudioHardware()
+        let audio = AudioRecovery(hardware: hardware, stateURL: file)
+        audio.muteDefaultOutput()
+        let saved = audio.pending
+        hardware.onSet = { muted, _ in
+            if !muted {
+                try FileManager.default.removeItem(at: file)
+                try FileManager.default.createDirectory(at: file, withIntermediateDirectories: false)
+            }
+        }
+        audio.restore()
+        #expect(hardware.muted["speaker"] == false)
+        #expect(audio.issue != nil && !audio.pending.isEmpty)
+        hardware.onSet = nil
+        try FileManager.default.removeItem(at: file)
+        try PowerStorage.write(saved, to: file)
+        hardware.muted["speaker"] = true
+        audio.restore()
+        #expect(hardware.muted["speaker"] == true)
+        #expect(audio.pending.isEmpty)
+        #expect(audio.issue == nil)
+    }
+
     @Test func unsupportedAudioDoesNotLeaveFalseRecoveryWork() {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("kith-audio-\(UUID())")
         defer { try? FileManager.default.removeItem(at: directory) }
