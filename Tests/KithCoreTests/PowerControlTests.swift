@@ -48,6 +48,17 @@ struct PowerControlTests {
         withExtendedLifetime(inbox) {}
     }
 
+    @Test func transientRecoveryLockContentionIsRetried() async throws {
+        let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("lock")
+        let original = try PowerStorage.lock(at: url)
+        let waiting = Task.detached { try PowerStorage.lock(at: url) }
+        try await Task.sleep(for: .milliseconds(80))
+        try original.close()
+        let acquired = try await waiting.value
+        try acquired.close()
+    }
+
     @Test func malformedPolicyIsArchivedOnlyByExplicitResume() throws {
         let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
         let file = dir.appendingPathComponent("power.json")
