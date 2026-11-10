@@ -24,7 +24,7 @@ struct KithMenu: View {
                 }
                 Spacer()
                 Button {
-                    showSettings(.monitoring)
+                    showSettings(.general)
                 } label: {
                     Image(systemName: "gearshape")
                 }
@@ -130,7 +130,7 @@ struct KithMenu: View {
     }
 }
 
-private struct KithWakeTimer: View {
+struct KithWakeTimer: View {
     @EnvironmentObject private var model: KithModel
     @State private var selectedMinutes = 60
     @State private var customHours = "1"
@@ -163,7 +163,7 @@ private struct KithWakeTimer: View {
                         .monospacedDigit()
                         .accessibilityLabel(Text("Awake time remaining: ") + Text(timerInterval: context.date...activeDeadline, countsDown: true))
                     HStack {
-                        Text(model.manualWakeActive ? "Manual wake period" : "Agent awake limit")
+                        Text(model.manualWakeActive ? "Manual timer" : "Agent awake limit")
                         Spacer()
                         Text("Ends \(activeDeadline, style: .time)")
                     }
@@ -179,7 +179,7 @@ private struct KithWakeTimer: View {
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Text(model.wakeStopped != nil || deadline != nil ? "Timer stopped. Choose a duration to start again." : "Keep your Mac awake, even without agent work.")
+                    Text(model.wakeStopped != nil || deadline != nil ? "Timer stopped. Choose a duration to start again." : "Keep your Mac awake for a little longer.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -331,7 +331,7 @@ private struct KithPowerDisclosure: View {
                     Toggle("Allow closed-lid work", isOn: $model.closedLid)
                         .disabled(!model.helperEnabled)
                     if !model.helperEnabled {
-                        Button("Set up closed-lid work") { showPowerSettings() }
+                        Button("Set up closed-lid work") { showSettings(.power) }
                             .font(.caption)
                     }
                     if model.armedAction == nil {
@@ -347,7 +347,9 @@ private struct KithPowerDisclosure: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    Button("More power settings") { showPowerSettings() }
+                    Button("After-work settings") { showSettings(.afterWork) }
+                        .font(.caption)
+                    Button("More power settings") { showSettings(.power) }
                         .font(.caption)
                 }
                 .padding(.top, 10)
@@ -361,8 +363,8 @@ private struct KithPowerDisclosure: View {
         }
     }
 
-    private func showPowerSettings() {
-        model.settingsPane = .power
+    private func showSettings(_ pane: SettingsPane) {
+        model.settingsPane = pane
         model.workspacePage = .settings
         openWindow(id: "workspace")
         NSApplication.shared.activate(ignoringOtherApps: true)

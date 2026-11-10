@@ -1,6 +1,6 @@
 # Kith acceptance checks
 
-Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Enable after live validation** off until every applicable check passes. Use a build whose app and privileged helper share one signing identity (Apple-issued or the local self-signed one). Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
+Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Allow finish actions** off in Settings → After work until every applicable check passes. Use a build whose app and privileged helper share one signing identity (Apple-issued or the local self-signed one). Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
 
 ## Session monitoring
 
@@ -20,7 +20,7 @@ Check event latency against the hook invocation time: under 5 seconds for hook e
 
 - With no work, confirm the menu bar panel stays compact and shows an all-clear state only when monitoring is healthy.
 - Start several sessions, request input in more than four, and fail one. The panel must prioritize the action items, cap its preview, and open the matching app or thread from each visible row. The shared Kith window must show the rest in Sessions, with working and recent filters and search by title, project, and source.
-- Expand Power in the panel for the short controls, then open its full settings. The shared window must have Sessions and Settings tabs, keep one instance, and preserve the selected tab when reopened.
+- Expand Power in the panel for the short controls, then open its full settings. The shared window must have a sidebar for Sessions and each settings page, keep one instance, and preserve the selected destination when reopened. Check keyboard navigation and the sidebar toggle, search and filters, light and dark appearance, and a narrow window. Monitoring and notification issues must appear beside their sidebar destinations and on Sessions. Protective stops, recovery problems, and armed countdowns must remain visible. Recovery controls must appear near the top of Power when recovery needs attention.
 - Disable a monitor and notifications. Their warnings must remain visible in the panel and shared window, with links to the relevant Settings panes. An unavailable monitor must never appear as finished work.
 - Arm sleep and shutdown in turn. The armed state and Cancel must remain visible while scrolling; shutdown must require confirmation, and the 60-second countdown must stay at the top of the panel.
 - Check light, dark, increased contrast, VoiceOver, keyboard navigation, long titles, duplicate titles, and a small display. Settings text and controls must stay readable over the glass surface. Status must be clear without color, and the panel must remain within the display.

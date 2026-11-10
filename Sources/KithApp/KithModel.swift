@@ -23,12 +23,33 @@ enum WorkspacePage: String, CaseIterable, Identifiable {
 }
 
 enum SettingsPane: String, CaseIterable, Identifiable {
+    case general = "General"
     case monitoring = "Monitoring"
     case notifications = "Notifications"
     case power = "Power"
-    case general = "General"
+    case afterWork = "After work"
 
     var id: String { rawValue }
+
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .monitoring: "waveform.path.ecg"
+        case .notifications: "bell"
+        case .power: "bolt"
+        case .afterWork: "moon"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general: "Make Kith at home on your Mac."
+        case .monitoring: "Connect your agents and check their status."
+        case .notifications: "Choose when Kith gets your attention."
+        case .power: "Keep your Mac ready while agents work."
+        case .afterWork: "Choose what happens when every agent is done."
+        }
+    }
 }
 
 @MainActor
