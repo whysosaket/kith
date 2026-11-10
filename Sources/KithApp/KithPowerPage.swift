@@ -1,16 +1,17 @@
+import KithCore
 import SwiftUI
 
 struct KithPowerPage: View {
     @EnvironmentObject private var model: KithModel
 
     private var recoveryNeedsAttention: Bool {
-        model.powerStatus.recovery != .restored || model.audioIssue != nil || model.audioRecoveryPending
+        model.powerRecoveryPending || model.audioIssue != nil || model.audioRecoveryPending
     }
 
     var body: some View {
         KithWakeTimer()
 
-        if model.wakeStopped != nil || recoveryNeedsAttention || model.networkWarning || model.controlIssue != nil {
+        if model.wakeStopped != nil || recoveryNeedsAttention || model.systemSleepDisabled || model.networkWarning || model.controlIssue != nil {
             KithPowerHealthView(showAction: false)
             if model.wakeStopped != nil {
                 Button("Resume awake protection") { model.resumeWake() }
@@ -44,23 +45,21 @@ struct KithPowerPage: View {
             Divider()
             KithSettingsHelp(title: "How awake periods work") {
                 Text("Extra time starts when the last active turn ends. It cannot extend the current deadline. Maximum-time changes apply to the next period.")
-                Text("Display wake prevents idle display sleep. It does not bypass an explicit lock or guarantee that computer use works with the lid closed.")
+                Text("Display wake prevents idle display sleep. An explicit lock still applies.")
+                Text("macOS controls sleep when you close the lid. For closed-lid work, use a supported external display setup.")
             }
         }
 
-        KithSettingsGroup(title: "With the lid closed") {
-            KithToggleRow(title: "Allow closed-lid work", subtitle: closedLidSubtitle, isOn: $model.closedLid)
-                .disabled(!model.helperEnabled && !model.closedLid)
-            Divider()
-            KithSettingsRow(title: "Power helper", subtitle: model.helperEnabled ? "Enabled on this Mac." : "Required for closed-lid work and energy saving.") {
+        KithSettingsGroup(title: "Power helper") {
+            KithSettingsRow(title: "Helper status", subtitle: model.helperEnabled ? "Enabled on this Mac." : "Runs finish actions and restores saved power settings.") {
                 Button(model.helperEnabled ? "Disable helper" : "Set up helper") {
                     if model.helperEnabled { model.disableHelper() }
                     else { model.enableHelper() }
                 }
             }
             Divider()
-            KithSettingsHelp(title: "Before using closed-lid work") {
-                Text("The helper temporarily changes a system sleep setting. Avoid running another closed-lid utility at the same time. Approve the helper in System Settings → General → Login Items & Extensions.")
+            KithSettingsHelp(title: "Helper approval") {
+                Text("Approve the helper in System Settings → General → Login Items & Extensions.")
             }
         }
 
@@ -75,16 +74,7 @@ struct KithPowerPage: View {
             Text("Critical heat always stops protection. Resume explicitly when conditions are safe.")
                 .font(.caption).foregroundStyle(.secondary).padding(14)
             Divider()
-            KithSettingsHelp(title: "Energy saving & audio") {
-                Toggle("Enable energy saving", isOn: $model.powerPreferences.saveEnergy)
-                    .disabled(!model.helperEnabled && !model.powerPreferences.saveEnergy)
-                Picker("Low Power Mode below", selection: $model.powerPreferences.lowPowerFloor) {
-                    ForEach([30, 40, 50], id: \.self) { value in Text("\(value)% battery").tag(value) }
-                }
-                .disabled(!model.powerPreferences.saveEnergy)
-                Toggle("Also save energy with the lid closed", isOn: $model.powerPreferences.lowPowerWithLidClosed)
-                    .disabled(!model.powerPreferences.saveEnergy)
-                Text("Energy saving requires the helper and can reduce performance. Kith restores the previous AC and battery settings.")
+            KithSettingsHelp(title: "Battery warnings & audio") {
                 Toggle("Mute audio with the lid closed", isOn: $model.powerPreferences.muteWithLidClosed)
                 Text("Low-battery warnings start at \(model.powerPreferences.batteryWarning)%.")
             }
@@ -113,15 +103,15 @@ struct KithPowerPage: View {
         }
     }
 
-    private var closedLidSubtitle: String {
-        if !model.helperEnabled { return "Set up the power helper to use this option." }
-        if model.externalWakeOwner { return "Another app is holding closed-lid protection." }
-        return model.closedLidReady ? "Closed-lid protection is active." : "Keep working when you close your Mac."
-    }
-
     private var recoveryDetails: some View {
         VStack(alignment: .leading, spacing: 12) {
-            LabeledContent("Power recovery", value: model.powerStatus.leaseActive ? "Protection active" : model.powerStatus.recovery.title)
+            let recovery = model.powerStatus.recovery
+            LabeledContent("Power recovery", value: model.legacyPowerRecoveryPending && recovery == .restored
+                ? RecoveryState.pending.title : recovery.title)
+            if model.legacyPowerRecoveryPending && !model.helperEnabled {
+                Text("Set up the power helper to restore settings saved by an earlier version of Kith.")
+                    .foregroundStyle(.orange)
+            }
             if let detail = model.powerStatus.detail { Text(detail).foregroundStyle(.secondary) }
             if let issue = model.audioIssue { Text(issue).foregroundStyle(.orange) }
             ForEach(model.audioPending) { output in
@@ -152,7 +142,7 @@ struct KithAfterWorkPage: View {
             KithToggleRow(title: "Allow finish actions", subtitle: "Enable only after completing the live checks on your Mac.", isOn: $model.automationValidated)
             Divider()
             KithSettingsHelp(title: "Live validation checklist") {
-                Text("Validate all four agent clients and closed-lid work on AC and battery before enabling. This switch records your sign-off; Kith cannot verify the checks.")
+                Text("Validate all four agent clients before enabling finish actions. This switch records your sign-off.")
                 Link("Open acceptance checklist", destination: URL(string: "https://github.com/whysosaket/kith/blob/main/docs/ACCEPTANCE.md")!)
             }
         }
@@ -218,8 +208,11 @@ struct KithPowerHealthView: View {
             if let stop = model.wakeStopped {
                 Label(stop.message, systemImage: "pause.circle")
             }
-            if model.powerStatus.recovery != .restored || model.audioIssue != nil || model.audioRecoveryPending {
+            if model.powerRecoveryPending || model.audioIssue != nil || model.audioRecoveryPending {
                 Label("Power recovery needs attention", systemImage: "exclamationmark.triangle")
+            }
+            if model.systemSleepDisabled {
+                Label("macOS sleep is disabled system-wide", systemImage: "exclamationmark.triangle")
             }
             if model.networkWarning {
                 Label("Network unavailable during active work", systemImage: "wifi.slash")
@@ -227,7 +220,7 @@ struct KithPowerHealthView: View {
             if let issue = model.controlIssue {
                 Label(issue, systemImage: "exclamationmark.circle")
             }
-            if showAction && (model.wakeStopped != nil || model.powerStatus.recovery != .restored ||
+            if showAction && (model.wakeStopped != nil || model.powerRecoveryPending || model.systemSleepDisabled ||
                 model.audioIssue != nil || model.audioRecoveryPending || model.networkWarning || model.controlIssue != nil) {
                 Button("Review power") {
                     model.settingsPane = .power

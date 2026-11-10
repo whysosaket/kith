@@ -60,8 +60,8 @@ final class KithModel: ObservableObject {
     @Published private(set) var helperEnabled = false
     @Published private(set) var accessibilityEnabled = false
     @Published private(set) var idleHoldActive = false
-    @Published private(set) var closedLidReady = false
-    @Published private(set) var externalWakeOwner = false
+    @Published private(set) var legacyPowerRecoveryPending = false
+    @Published private(set) var systemSleepDisabled = false
     @Published private(set) var notificationIssue: String?
     @Published private(set) var message: String?
     @Published private(set) var countdown: Int?
@@ -90,9 +90,6 @@ final class KithModel: ObservableObject {
     @Published var settingsPane: SettingsPane = .monitoring
     @Published var keepAwake: Bool {
         didSet { KithTesting.defaults.set(keepAwake, forKey: "keepAwake") }
-    }
-    @Published var closedLid: Bool {
-        didSet { KithTesting.defaults.set(closedLid, forKey: "closedLid") }
     }
     @Published var postRunMinutes: Int {
         didSet { KithTesting.defaults.set(postRunMinutes, forKey: "postRunMinutes") }
@@ -157,7 +154,6 @@ final class KithModel: ObservableObject {
         do { powerInbox = try PowerCommandInbox(directory: KithPaths.powerCommands) }
         catch { controlIssue = error.localizedDescription }
         keepAwake = defaults.object(forKey: "keepAwake") as? Bool ?? true
-        closedLid = defaults.bool(forKey: "closedLid")
         postRunMinutes = defaults.object(forKey: "postRunMinutes") as? Int ?? 5
         attentionSound = defaults.object(forKey: "attentionSound") as? Bool ?? true
         completionSound = defaults.object(forKey: "completionSound") as? Bool ?? true
@@ -189,7 +185,6 @@ final class KithModel: ObservableObject {
                 MainActor.assumeIsolated {
                     if self?.powerInbox != nil { self?.flushState() }
                     self?.powerMonitor.stop()
-                    self?.power.applyLease(nil, id: nil)
                     self?.power.holdIdleSleep(false)
                     _ = self?.power.holdDisplay(until: nil)
                     if !KithTesting.enabled && self?.powerInbox != nil { self?.audioRecovery.restore() }
@@ -236,15 +231,10 @@ final class KithModel: ObservableObject {
     var powerSummary: String {
         if let controlIssue { return controlIssue }
         if let wakeStopped { return wakeStopped.message }
-        if (closedLid || powerPreferences.saveEnergy) && !helperEnabled { return "Power helper is not enabled" }
-        if powerStatus.recovery != .restored { return powerStatus.recovery.title }
-        if closedLidReady {
-            return externalWakeOwner ? "External closed-lid hold detected" : "Closed-lid hold active"
-        }
-        if idleHoldActive {
-            return closedLid ? "Keeping awake · preparing lid hold" : "Keeping Mac awake"
-        }
-        if keepAwake || closedLid { return "Ready when agents work" }
+        if powerRecoveryPending { return "Power recovery needs attention" }
+        if systemSleepDisabled { return "macOS sleep is disabled system-wide" }
+        if idleHoldActive { return "Keeping Mac awake" }
+        if keepAwake { return "Ready when agents work" }
         return "Awake protection is off"
     }
 
@@ -276,7 +266,7 @@ final class KithModel: ObservableObject {
         if let controlIssue { return controlIssue }
         if manualWakeActive { return "End the manual wake period before arming a finish action." }
         if let wakeStopped { return wakeStopped.message + ". Resume awake protection before arming." }
-        if powerStatus.recovery != .restored || audioIssue != nil || audioRecoveryPending || (!hasWork && !audioPending.isEmpty) {
+        if powerRecoveryPending || audioIssue != nil || audioRecoveryPending || (!hasWork && !audioPending.isEmpty) {
             return "Resolve pending power recovery before arming."
         }
         if !automationValidated { return "Finish actions are locked until live validation is completed." }
@@ -286,6 +276,8 @@ final class KithModel: ObservableObject {
         if !helperEnabled { return "Enable the power helper before arming a finish action." }
         return nil
     }
+
+    var powerRecoveryPending: Bool { legacyPowerRecoveryPending || powerStatus.recovery != .restored }
 
     var audioRecoveryPending: Bool { audioRestoreRequired && !audioPending.isEmpty }
 
@@ -337,7 +329,6 @@ final class KithModel: ObservableObject {
     }
 
     func disableHelper() {
-        closedLid = false
         power.unregisterHelper { [weak self] error in
             guard let self else { return }
             helperEnabled = power.helperEnabled
@@ -547,6 +538,9 @@ final class KithModel: ObservableObject {
             self?.handlePowerCommand(command) ?? PowerCommandReply(ok: false, message: "Kith is closing")
         }
         powerMonitor.refreshLid()
+        let pendingRecovery = FileManager.default.fileExists(atPath: PowerService.recoveryStateURL.path)
+        if legacyPowerRecoveryPending != pendingRecovery { legacyPowerRecoveryPending = pendingRecovery }
+        if systemSleepDisabled != powerMonitor.systemSleepDisabled { systemSleepDisabled = powerMonitor.systemSleepDisabled }
         if Date().timeIntervalSince(lastHelperCheck) >= 30 {
             lastHelperCheck = Date()
             power.refreshHelper()
@@ -556,8 +550,6 @@ final class KithModel: ObservableObject {
         if hooksInstalled != installed { hooksInstalled = installed }
         let trusted = CodexAXProbe.trusted
         if accessibilityEnabled != trusted { accessibilityEnabled = trusted }
-        if closedLidReady != power.closedLidReady { closedLidReady = power.closedLidReady }
-        if externalWakeOwner != power.externalWakeOwner { externalWakeOwner = power.externalWakeOwner }
         if Date().timeIntervalSince(lastNotificationCheck) >= 30 {
             lastNotificationCheck = Date()
             refreshNotificationStatus()
@@ -831,13 +823,12 @@ final class KithModel: ObservableObject {
         if work { recordWork() }
         if let armedAt, now.timeIntervalSince(armedAt) >= 86_400 { cancelAction() }
         var decision = powerSession.update(now: now, work: work, monitoringReady: bootstrapComplete,
-            automaticEnabled: keepAwake || closedLid, graceSeconds: Double(postRunMinutes * 60),
+            automaticEnabled: keepAwake, graceSeconds: Double(postRunMinutes * 60),
             conditions: conditions, preferences: powerPreferences, batteryChanged: batteryChanged)
         batteryChanged = false
-        if powerInbox == nil || controlIssue != nil || (power.helperStatus.recovery != .restored && (closedLid || decision.lowPower)) {
+        if controlIssue != nil {
             decision.hold = false
             decision.display = false
-            decision.lowPower = false
         }
         if let stop = decision.stop, wakeStopped != stop {
             diagnostics.record(stop.message)
@@ -860,9 +851,6 @@ final class KithModel: ObservableObject {
             diagnostics.record("Could not apply system or display wake assertion")
             cancelAction()
         }
-        let needsHelper = decision.hold && (closedLid || decision.lowPower)
-        power.applyLease(needsHelper ? deadline.map { PowerLeaseRequest(deadline: $0, closedLid: closedLid, lowPower: decision.lowPower) } : nil,
-                         id: needsHelper ? powerSession.policy.period?.id : nil)
         let shouldMute = decision.hold && powerPreferences.muteWithLidClosed && conditions.lidClosed && (armedAction == nil || work)
         audioRestoreRequired = !shouldMute
         if !KithTesting.enabled && shouldMute {
@@ -872,7 +860,8 @@ final class KithModel: ObservableObject {
         updateConnectivity()
         updatePowerWarnings(active: decision.hold)
         if !KithTesting.enabled { workflow.refreshBrowsers(enabled: decision.hold && powerPreferences.browserDiagnostics) }
-        if decision.stop != nil || controlIssue != nil || manualWakeActive || powerStatus.recovery != .restored || audioIssue != nil || audioRecoveryPending {
+        if decision.stop != nil || controlIssue != nil || manualWakeActive || powerRecoveryPending ||
+            audioIssue != nil || audioRecoveryPending {
             if armedAction != nil {
                 cancelAction()
                 message = "Kith canceled the finish action because power recovery or awake protection needs attention"
@@ -918,7 +907,7 @@ final class KithModel: ObservableObject {
                       self.unavailable.isEmpty, self.store.allSafeToFinish,
                       !self.store.sessions.isEmpty, !self.manualWakeActive,
                       self.wakeStopped == nil, self.controlIssue == nil,
-                      self.powerStatus.recovery == .restored, self.audioIssue == nil,
+                      !self.powerRecoveryPending, self.audioIssue == nil,
                       self.audioPending.isEmpty else {
                     self.cancelAction()
                     self.message = "Final monitor check blocked the power action"

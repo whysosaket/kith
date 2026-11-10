@@ -2,45 +2,52 @@ import CryptoKit
 import Foundation
 import KithCore
 import Security
-import SystemConfiguration
 
-private final class MacPowerHardware: PowerHardware, @unchecked Sendable {
+private final class MacPowerHardware: PowerRecoveryHardware {
     let commands = BoundedCommand()
 
-    func sleepDisabled() throws -> Bool {
+    private func sleepDisabled() throws -> Bool {
         let text = try run(["-g"])
-        for line in text.split(separator: "\n") where line.contains("SleepDisabled") {
-            if line.split(whereSeparator: \.isWhitespace).last == "1" { return true }
-            if line.split(whereSeparator: \.isWhitespace).last == "0" { return false }
+        guard text.contains("Currently in use:") || text.contains("System-wide power settings:") else {
+            throw PowerError.unavailable("Cannot read system-wide power settings")
         }
-        throw PowerError.unavailable("Cannot read SleepDisabled")
+        for line in text.split(separator: "\n") {
+            let words = line.split(whereSeparator: \.isWhitespace)
+            guard words.first == "SleepDisabled" else { continue }
+            if words.last == "1" { return true }
+            if words.last == "0" { return false }
+            throw PowerError.unavailable("Cannot read SleepDisabled")
+        }
+        // pmset omits this preference when macOS uses the default.
+        return false
     }
 
-    func lowPowerSettings() throws -> [String: Bool] {
+    private func lowPowerEnabled(source: String) throws -> Bool {
         let text = try run(["-g", "custom"])
-        var source: String?
-        var settings: [String: Bool] = [:]
+        let heading = source == "b" ? "Battery Power:" : "AC Power:"
+        var readingSource = false
         for line in text.split(separator: "\n") {
-            if line.contains("Battery Power:") { source = "b" }
-            else if line.contains("AC Power:") { source = "c" }
-            else if line.contains("Power:") { source = nil }
-            else if let source {
-                let words = line.split(whereSeparator: \.isWhitespace)
-                if words.first == "lowpowermode", let value = words.last, ["0", "1"].contains(value) {
-                    settings[source] = value == "1"
-                }
+            if line.hasSuffix("Power:") { readingSource = line == heading }
+            guard readingSource else { continue }
+            let words = line.split(whereSeparator: \.isWhitespace)
+            if words.first == "lowpowermode" || words.first == "powermode",
+               words.count == 2, let mode = Int(words[1]), mode >= 0 {
+                return mode == 1
             }
         }
-        return settings
+        throw PowerError.unavailable("Cannot read the saved Low Power Mode setting")
     }
 
-    func setSleepDisabled(_ value: Bool, lock: FileHandle) throws {
-        _ = try run(["-a", "disablesleep", value ? "1" : "0"], lock: lock)
+    func restoreSleep(lock: FileHandle) throws {
+        guard try sleepDisabled() else { return }
+        _ = try run(["-a", "disablesleep", "0"], lock: lock)
+        guard try !sleepDisabled() else { throw PowerError.unavailable("Sleep restoration could not be verified") }
     }
 
-    func setLowPower(_ value: Bool, source: String, lock: FileHandle) throws {
-        guard ["b", "c"].contains(source) else { throw PowerError.invalid("Invalid power source in recovery state") }
-        _ = try run(["-" + source, "lowpowermode", value ? "1" : "0"], lock: lock)
+    func restoreLowPower(source: String, lock: FileHandle) throws {
+        guard try lowPowerEnabled(source: source) else { return }
+        _ = try run(["-" + source, "lowpowermode", "0"], lock: lock)
+        guard try !lowPowerEnabled(source: source) else { throw PowerError.unavailable("Low Power Mode restoration could not be verified") }
     }
 
     private func run(_ arguments: [String], lock: FileHandle? = nil) throws -> String {
@@ -55,15 +62,18 @@ private struct XPCDataReply: @unchecked Sendable { let call: (Data) -> Void }
 
 private final class PowerController: @unchecked Sendable {
     let queue = DispatchQueue(label: "\(PowerService.name).state")
-    let leases = PowerLeaseController(stateURL: URL(fileURLWithPath: "/var/db/kith-power-state.json"),
+    let recovery = PowerPreferenceRecovery(stateURL: PowerService.recoveryStateURL,
         lockURL: URL(fileURLWithPath: "/var/db/kith-power.lock"), hardware: MacPowerHardware())
     private var timer: DispatchSourceTimer?
 
     init() {
-        queue.async { self.leases.recoverAfterRestart() }
+        queue.async { try? self.recovery.restore() }
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + 5, repeating: 5)
-        timer.setEventHandler { [weak self] in self?.leases.expireIfNeeded() }
+        timer.setEventHandler { [weak self] in
+            guard let self, self.recovery.status.recovery != .restored else { return }
+            try? self.recovery.restore()
+        }
         timer.resume()
         self.timer = timer
     }
@@ -71,53 +81,40 @@ private final class PowerController: @unchecked Sendable {
 
 private final class PowerConnection: NSObject, PowerServiceProtocol, @unchecked Sendable {
     let controller: PowerController
-    let uid: UInt32
-    init(controller: PowerController, uid: UInt32) { self.controller = controller; self.uid = uid }
+    init(controller: PowerController) { self.controller = controller }
 
     func status(withReply reply: @escaping (Bool, String) -> Void) {
         let response = XPCReply(call: reply)
         controller.queue.async {
-            let status = self.controller.leases.status
+            let status = self.controller.recovery.status
             response.call(status.recovery == .restored, status.detail ?? "Power helper ready")
         }
     }
 
     func readStatus(withReply reply: @escaping (Data) -> Void) {
         let response = XPCDataReply(call: reply)
-        controller.queue.async { response.call((try? JSONEncoder().encode(self.controller.leases.status)) ?? Data()) }
+        controller.queue.async { response.call((try? JSONEncoder().encode(self.controller.recovery.status)) ?? Data()) }
     }
 
     func configure(leaseID: String, request: Data, withReply reply: @escaping (Bool, String) -> Void) {
-        operation(reply) {
-            guard request.count <= 4096 else { throw PowerError.invalid("Wake request is too large") }
-            let configuration = try JSONDecoder().decode(PowerLeaseRequest.self, from: request)
-            try self.controller.leases.configure(id: leaseID, uid: self.uid, request: configuration)
-        }
+        acquire(leaseID: leaseID, withReply: reply)
     }
 
-    // Legacy entry points retain the short lease behavior for an older app.
+    // Keep these selectors for older apps, but reject requests to change preferences.
     func acquire(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
-        operation(reply) {
-            try self.controller.leases.configure(id: leaseID, uid: self.uid,
-                request: PowerLeaseRequest(deadline: Date().addingTimeInterval(45), closedLid: true, lowPower: false))
-        }
+        reply(false, "Update Kith. This power helper only restores settings from older versions.")
     }
     func renew(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) { acquire(leaseID: leaseID, withReply: reply) }
     func release(leaseID: String, withReply reply: @escaping (Bool, String) -> Void) {
-        operation(reply) { try self.controller.leases.release(id: leaseID, uid: self.uid) }
+        retryRecovery(withReply: reply)
     }
     func retryRecovery(withReply reply: @escaping (Bool, String) -> Void) {
-        let response = XPCReply(call: reply)
-        controller.queue.async {
-            self.controller.leases.retryRecovery()
-            let status = self.controller.leases.status
-            response.call(status.recovery == .restored, status.detail ?? "Recovery complete")
-        }
+        operation(reply) { try self.controller.recovery.restore() }
     }
     func perform(action: String, withReply reply: @escaping (Bool, String) -> Void) {
         operation(reply) {
             guard ["sleep", "shutdown"].contains(action) else { throw PowerError.invalid("Unsupported action") }
-            try self.controller.leases.prepareForFinishAction(uid: self.uid)
+            try self.controller.recovery.restore()
             let process = Process()
             process.executableURL = URL(fileURLWithPath: action == "sleep" ? "/usr/bin/pmset" : "/sbin/shutdown")
             process.arguments = action == "sleep" ? ["sleepnow"] : ["-h", "now"]
@@ -159,7 +156,7 @@ private final class ListenerDelegate: NSObject, NSXPCListenerDelegate {
         guard connection.effectiveUserIdentifier != 0, let clientRequirement else { return false }
         connection.setCodeSigningRequirement(clientRequirement)
         connection.exportedInterface = NSXPCInterface(with: PowerServiceProtocol.self)
-        connection.exportedObject = PowerConnection(controller: controller, uid: connection.effectiveUserIdentifier)
+        connection.exportedObject = PowerConnection(controller: controller)
         connection.resume()
         return true
     }

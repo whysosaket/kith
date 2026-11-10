@@ -32,13 +32,12 @@ struct PowerPolicyTests {
         var policy = PowerPolicy()
         var preferences = PowerPreferences()
         preferences.keepDisplayAwake = true
-        preferences.saveEnergy = true
         try policy.start(seconds: 3600, manual: true, now: now, conditions: PowerConditions(), preferences: preferences)
         let low = PowerConditions(battery: .percent(10), onAC: false)
         let decision = policy.evaluate(now: now, work: true, monitoringReady: true, automaticEnabled: true,
             graceSeconds: 300, conditions: low, preferences: preferences)
         #expect(decision.stop == .battery)
-        #expect(!decision.hold && !decision.display && !decision.lowPower)
+        #expect(!decision.hold && !decision.display)
         #expect(throws: PowerError.self) {
             try policy.start(seconds: 3600, manual: false, now: now, conditions: low, preferences: preferences)
         }
@@ -106,21 +105,15 @@ struct PowerPolicyTests {
         #expect(policy.period?.id != id)
     }
 
-    @Test func energySavingIsOptionalAndFollowsConditions() throws {
-        var policy = PowerPolicy()
-        var preferences = PowerPreferences()
-        let low = PowerConditions(battery: .percent(30), onAC: false)
-        try policy.start(seconds: 3600, manual: true, now: now, conditions: low, preferences: preferences)
-        func evaluate(_ conditions: PowerConditions) -> PowerDecision {
-            policy.evaluate(now: now, work: false, monitoringReady: true, automaticEnabled: false,
-                graceSeconds: 0, conditions: conditions, preferences: preferences)
-        }
-        #expect(!evaluate(low).lowPower)
-        preferences.saveEnergy = true
-        #expect(evaluate(low).lowPower)
-        #expect(!evaluate(PowerConditions()).lowPower)
-        #expect(evaluate(PowerConditions(heat: .serious)).lowPower)
-        preferences.lowPowerWithLidClosed = true
-        #expect(evaluate(PowerConditions(lidClosed: true)).lowPower)
+    @Test func legacyPreferencesRetainSupportedSettings() throws {
+        let data = Data("""
+            {"maximumSeconds":7200,"batteryWarning":20,"batteryFloor":10,"keepDisplayAwake":true,
+             "saveEnergy":true,"lowPowerFloor":40,"lowPowerWithLidClosed":true,
+             "muteWithLidClosed":true,"networkAlerts":true,"browserDiagnostics":false}
+            """.utf8)
+        let preferences = try JSONDecoder().decode(PowerPreferences.self, from: data).validated()
+        #expect(preferences.maximumSeconds == 7200)
+        #expect(preferences.keepDisplayAwake)
+        #expect(preferences.muteWithLidClosed)
     }
 }

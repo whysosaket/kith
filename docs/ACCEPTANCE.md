@@ -1,6 +1,6 @@
 # Kith acceptance checks
 
-Run these on your own Mac before relying on finish actions or the closed-lid helper. Keep **Allow finish actions** off in Settings → After work until every applicable check passes. Use a build whose app and privileged helper share one signing identity (Apple-issued or the local self-signed one). Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
+Run these on your own Mac before relying on finish actions. Keep **Allow finish actions** off in Settings → After work until every applicable check passes. Use a build whose app and privileged helper share one signing identity (Apple-issued or the local self-signed one). Install hooks, trust the Codex definitions with `/hooks`, grant notifications and Accessibility, and enable the helper.
 
 ## Session monitoring
 
@@ -27,13 +27,13 @@ Check event latency against the hook invocation time: under 5 seconds for hook e
 
 ## Power and closed lid
 
-Before testing, note `pmset -g` → `SleepDisabled` and save all work. Verify the idle assertion exists only during work plus the selected extra hold. Test a pending question, a new turn during the 60-second countdown, and explicit Cancel.
+Before testing, record `pmset -g` and `pmset -g custom` and save all work. Use `pmset -g assertions` to verify that Kith holds idle sleep during work and the selected extra hold. Start a manual timer with display wake enabled. Quit and force-quit Kith in separate runs and check that both assertions clear. On a supervised test Mac, suspend the running Kith process and confirm that both assertions expire within 45 seconds. Resume or terminate that process after the check.
 
-With **no external display**, test a long-running turn with the lid closed on AC, then on battery. Change power source during a run. Confirm the agent continues and Kith shows the hold active *before* closing the lid. After each test, confirm `SleepDisabled` returns to its prior value. Repeat after killing the app, restarting the helper, and disabling the helper. The 45-second lease should restore the setting after an app crash.
+Confirm the system-wide sleep setting and both power profiles match the baseline after these runs. Test lid close with and without a supported external display setup and confirm macOS follows its normal behavior in each case. On a test Mac with settings already recorded by an earlier Kith version, start the updated helper and check that it restores the recorded preferences. Disable the helper in Settings → Power after recovery.
 
 Confirm that an ad hoc build, or an app signed with a different certificate than the helper, cannot use the helper and shows the error in Power. An app signed with the helper's identity must connect, and must reconnect after the helper is disabled and enabled again in Settings → Power, without relaunching Kith.
 
-Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Power after completing these checks.
+Finally test Sleep and Shutdown in a supervised session. Save other apps first; the shutdown request does not protect unsaved work. Verify no action runs while any session is Running, Needs input, Failed, or unavailable. Only enable finish actions in Settings → After work after completing these checks.
 
 ## Bounded power workflows
 
@@ -43,8 +43,7 @@ Run `scripts/test.sh` and `scripts/test-power-e2e.sh` first. The E2E script laun
 - Start automatic work and a manual period separately. Verify the visible deadline, a single five-minute reminder, Extend, End, and Resume. New turns, waiting prompts, and grace time must preserve the deadline. Setting a different maximum applies to the next period. Verify both system and display assertions release at the end.
 - Restart the app during a period and after expiry. The original deadline must survive; an expired period must stay stopped. Launch a second app instance and verify it cannot own the same command inbox or apply power changes.
 - Start a manual period while sleep or shutdown is armed. The action must cancel. Manual periods, safety stops, unavailable monitors, and unresolved power/audio recovery must block finish actions.
-- Exercise AC-to-battery and battery-to-AC changes and the selected battery floor. Confirm that low-battery stops release Kith's system, display and closed-lid holds and require explicit resume. Use injected thermal/battery inputs for hazardous conditions; do not intentionally overheat or exhaust a Mac to test them. Confirm event wiring on hardware through normal power changes. Two unreadable battery observations on battery must stop protection; no-battery desktops must remain supported.
-- With energy saving enabled, verify the prior AC and battery Low Power Mode preferences independently. Test battery, serious-heat and lid conditions, helper restart, app termination and restoration failure. An already-enabled mode must remain enabled. Turn the mode off yourself during a period and confirm renewal does not turn it back on or undo a later user setting.
+- Exercise AC-to-battery and battery-to-AC changes and the selected battery floor. Confirm that low-battery stops release Kith's system and display holds and require explicit resume. Use injected thermal/battery inputs for hazardous conditions; do not intentionally overheat or exhaust a Mac to test them. Confirm event wiring on hardware through normal power changes. Two unreadable battery observations on battery must stop protection; no-battery desktops must remain supported.
 - Test display wake with UI automation and explicit screen locking. Display wake must be opt-in, remain bounded by the current deadline, and release at a safety stop. It must never change lock-screen preferences.
 - Test lid-close muting with speakers, headphones, a device switch while closed, a user unmute, an output disconnect/reconnect, app relaunch and failed restoration. Saved outputs must restore on their own devices. Stop waiting must work only for a disconnected saved output. Audio recovery needs the user app; the root helper cannot perform it.
 - Disconnect the network for less than five seconds, then for longer during work. Check one outage notification, a persistent warning and one recovery notice. End work during an outage and check that warnings clear. These events must never mark a session finished.
