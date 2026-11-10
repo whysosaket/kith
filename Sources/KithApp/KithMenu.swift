@@ -328,12 +328,6 @@ private struct KithPowerDisclosure: View {
             if expanded {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Keep awake while working", isOn: $model.keepAwake)
-                    Toggle("Allow closed-lid work", isOn: $model.closedLid)
-                        .disabled(!model.helperEnabled)
-                    if !model.helperEnabled {
-                        Button("Set up closed-lid work") { showSettings(.power) }
-                            .font(.caption)
-                    }
                     if model.armedAction == nil {
                         Menu("After work…") {
                             Button("Sleep when work ends") { model.arm(.sleep) }

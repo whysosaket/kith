@@ -8,6 +8,7 @@ import Network
 final class PowerSystemMonitor {
     private(set) var conditions = PowerConditions()
     private(set) var networkAvailable: Bool?
+    private(set) var systemSleepDisabled = false
     var onChange: ((PowerConditions, Bool) -> Void)?
     var onNetworkChange: (() -> Void)?
     private var source: CFRunLoopSource?
@@ -57,6 +58,8 @@ final class PowerSystemMonitor {
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPMrootDomain"))
         guard service != 0 else { return }
         defer { IOObjectRelease(service) }
+        systemSleepDisabled = IORegistryEntryCreateCFProperty(service, "SleepDisabled" as CFString,
+            kCFAllocatorDefault, 0)?.takeRetainedValue() as? Bool ?? false
         guard let closed = IORegistryEntryCreateCFProperty(service, "AppleClamshellState" as CFString,
             kCFAllocatorDefault, 0)?.takeRetainedValue() as? Bool, closed != conditions.lidClosed else { return }
         conditions.lidClosed = closed

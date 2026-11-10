@@ -4,6 +4,7 @@ public enum PowerService {
     public static let clientIdentifier = "app.trykith.kith"
     public static let name = "app.trykith.kith.power"
     public static let plistName = "app.trykith.kith.power.plist"
+    public static let recoveryStateURL = URL(fileURLWithPath: "/var/db/kith-power-state.json")
 }
 
 @objc public protocol PowerServiceProtocol {

@@ -23,27 +23,16 @@ private struct HelperCallback: @unchecked Sendable { let call: (Bool, String) ->
 final class PowerClient {
     private var assertionID: IOPMAssertionID?
     private var connection: NSXPCConnection?
-    private var activeLeaseID: String?
-    private var desiredLeaseID: String?
-    private var desiredRequest: PowerLeaseRequest?
-    private var lastRequest: PowerLeaseRequest?
-    private var requestInFlight = false
-    private var lastRenewal = Date.distantPast
     private var displayAssertionID: IOPMAssertionID?
     private var simulatedIdle = false
     private var simulatedDisplay = false
     private(set) var helperStatus = PowerHelperStatus()
     var onError: ((String) -> Void)?
-    var externalWakeOwner: Bool { helperStatus.externalWakeOwner }
 
     var helperEnabled: Bool {
         !KithTesting.enabled && SMAppService.daemon(plistName: PowerService.plistName).status == .enabled
     }
     var idleHoldActive: Bool { KithTesting.enabled ? simulatedIdle : assertionID != nil }
-    var closedLidReady: Bool {
-        helperEnabled && helperStatus.leaseActive && desiredRequest?.closedLid == true &&
-            activeLeaseID != nil && helperStatus.leaseID == activeLeaseID && activeLeaseID == desiredLeaseID
-    }
     var displayHoldActive: Bool { KithTesting.enabled ? simulatedDisplay : displayAssertionID != nil }
 
     func registerHelper() throws {
@@ -52,32 +41,22 @@ final class PowerClient {
     }
 
     func unregisterHelper(completion: @escaping (Error?) -> Void) {
-        desiredRequest = nil
-        desiredLeaseID = nil
-        guard !requestInFlight else {
-            completion(NSError(domain: "KithPower", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Wait for the current power request, then disable the helper again"]))
-            return
-        }
-        let unregister = {
-            self.readStatus { success, message in
-                guard success, !self.helperStatus.leaseActive, self.helperStatus.recovery == .restored else {
-                    completion(NSError(domain: "KithPower", code: 1, userInfo: [NSLocalizedDescriptionKey: message]))
-                    return
-                }
-                do { try SMAppService.daemon(plistName: PowerService.plistName).unregister(); completion(nil) }
-                catch { completion(error) }
+        readStatus { success, message in
+            guard success, !self.helperStatus.leaseActive,
+                  !FileManager.default.fileExists(atPath: PowerService.recoveryStateURL.path) else {
+                let reason = success ? "Wait for legacy power recovery before disabling the helper" : message
+                completion(PowerError.unavailable(reason))
+                return
             }
+            do { try SMAppService.daemon(plistName: PowerService.plistName).unregister(); completion(nil) }
+            catch { completion(error) }
         }
-        if let id = activeLeaseID {
-            call({ proxy, reply in proxy.release(leaseID: id, withReply: reply) }) { success, message in
-                guard success else {
-                    completion(NSError(domain: "KithPower", code: 1, userInfo: [NSLocalizedDescriptionKey: message])); return
-                }
-                self.activeLeaseID = nil
-                unregister()
-            }
-        } else { unregister() }
+    }
+
+    // Renew through the model's periodic update. macOS can release a hold
+    // even when the app hangs before the period's deadline.
+    private func assertionTimeout(until deadline: Date?) -> TimeInterval {
+        min(45, max(1, deadline.map { ceil($0.timeIntervalSinceNow) } ?? 45))
     }
 
     @discardableResult
@@ -90,7 +69,7 @@ final class PowerClient {
                 "Kith active coding agents" as CFString,
                 "Monitoring local coding sessions" as CFString,
                 "Coding agents are working" as CFString,
-                nil, deadline.map { max(1, $0.timeIntervalSinceNow) } ?? 45,
+                nil, assertionTimeout(until: deadline),
                 kIOPMAssertionTimeoutActionTurnOff as CFString, &id)
             if status == kIOReturnSuccess { assertionID = id }
             else { return false }
@@ -100,7 +79,7 @@ final class PowerClient {
         }
         if shouldHold, let id = assertionID, let deadline {
             return IOPMAssertionSetProperty(id, kIOPMAssertionTimeoutKey as CFString,
-                max(1, ceil(deadline.timeIntervalSinceNow)) as CFNumber) == kIOReturnSuccess
+                assertionTimeout(until: deadline) as CFNumber) == kIOReturnSuccess
         }
         return true
     }
@@ -114,7 +93,7 @@ final class PowerClient {
             }
             return true
         }
-        let timeout = max(1, ceil(deadline.timeIntervalSinceNow)) as CFNumber
+        let timeout = assertionTimeout(until: deadline) as CFNumber
         if let id = displayAssertionID {
             return IOPMAssertionSetProperty(id, kIOPMAssertionTimeoutKey as CFString, timeout) == kIOReturnSuccess
         }
@@ -129,48 +108,6 @@ final class PowerClient {
         guard IOPMAssertionCreateWithProperties(properties as CFDictionary, &id) == kIOReturnSuccess else { return false }
         displayAssertionID = id
         return true
-    }
-
-    func applyLease(_ request: PowerLeaseRequest?, id: UUID?) {
-        desiredRequest = request
-        desiredLeaseID = id?.uuidString
-        if !helperEnabled {
-            helperStatus.leaseActive = false
-            lastRequest = nil
-            if activeLeaseID != nil {
-                helperStatus.recovery = .needsAttention
-                helperStatus.detail = "Enable the power helper to confirm restoration of its previous settings"
-            }
-            return
-        }
-        driveLease()
-    }
-
-    private func driveLease() {
-        guard helperEnabled, !requestInFlight else { return }
-        if let activeLeaseID, desiredRequest == nil || desiredLeaseID != activeLeaseID {
-            requestInFlight = true
-            call({ proxy, reply in proxy.release(leaseID: activeLeaseID, withReply: reply) }) { success, message in
-                self.requestInFlight = false
-                if success { self.activeLeaseID = nil; self.lastRequest = nil }
-                else { self.report(message) }
-                self.readStatus { _, _ in }
-                if success { self.driveLease() }
-            }
-            return
-        }
-        guard let desiredRequest, let id = desiredLeaseID else { return }
-        guard desiredRequest != lastRequest || Date().timeIntervalSince(lastRenewal) >= 10 else { return }
-        guard let data = try? JSONEncoder().encode(desiredRequest) else { return }
-        requestInFlight = true
-        activeLeaseID = id
-        call({ proxy, reply in proxy.configure(leaseID: id, request: data, withReply: reply) }) { success, message in
-            self.requestInFlight = false
-            if success { self.lastRequest = desiredRequest; self.lastRenewal = Date() }
-            else { self.report(message) }
-            self.readStatus { _, _ in }
-            if self.desiredRequest != desiredRequest || self.desiredLeaseID != id { self.driveLease() }
-        }
     }
 
     func refreshHelper() {
