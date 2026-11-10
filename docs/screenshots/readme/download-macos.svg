@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="42" viewBox="0 0 192 42" role="img" aria-label="Download for macOS">
+  <rect width="192" height="42" rx="9" fill="#24283a"/>
+  <path d="M25 12v13m-5-5 5 5 5-5m-11 9h12" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="43" y="26" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="650">Download for macOS</text>
+</svg>
