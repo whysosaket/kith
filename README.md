@@ -7,10 +7,10 @@ Kith tracks Claude Code and Codex across their CLI and desktop apps. See what’
 **[Download Kith for macOS](https://github.com/whysosaket/kith/releases/latest/download/Kith-macOS-universal.dmg)** · [ZIP and checksums](https://github.com/whysosaket/kith/releases/latest) · [User guide](docs/USER-GUIDE.md)
 
 <p align="center">
-  <img src="docs/screenshots/readme/menu-bar.webp" width="430" alt="Kith’s macOS menu bar icon with an attention badge and the open popover showing the awake timer, a session that needs input, and working sessions">
+  <img src="docs/screenshots/readme/menu-bar.webp" width="430" alt="Kith’s macOS menu bar popover opens to show a live awake timer, a session that needs input, and working sessions, then closes">
 </p>
 
-*Screenshots and demo from the current source build, using sample sessions.*
+*Screenshots and demos from the current source build, using sample sessions.* [Menu bar GIF](docs/screenshots/readme/menu-bar.gif)
 
 ## What you can do
 
