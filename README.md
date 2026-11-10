@@ -45,7 +45,7 @@ The download is ad hoc signed and predates the redesign. If macOS blocks it, use
 
 ### Install from source
 
-Build with the macOS 26 SDK for the redesigned app. Use a signing identity to enable the optional helper for closed-lid work and finish actions. Sleep and shutdown require live validation on your Mac. [Build and signing instructions](docs/USER-GUIDE.md#install-from-source) · [Power and safety](docs/USER-GUIDE.md#power-and-safety) · [Live acceptance checks](docs/ACCEPTANCE.md)
+Build with the macOS 26 SDK for the redesigned app. Use a signing identity to enable the optional helper for finish actions and power recovery. Sleep and shutdown require live validation on your Mac. [Build and signing instructions](docs/USER-GUIDE.md#install-from-source) · [Power and safety](docs/USER-GUIDE.md#power-and-safety) · [Live acceptance checks](docs/ACCEPTANCE.md)
 
 ## More
 

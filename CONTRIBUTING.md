@@ -20,7 +20,7 @@ scripts/build-app.sh                 # dist/Kith.app
 - `Sources/KithCore`: session state machine, hook parsing and installation, the local scan, and the event socket. Most logic and all tests live here.
 - `Sources/KithApp`: the SwiftUI menu bar app, notifications and power client.
 - `Sources/KithEvent`: `kith-event`, the tiny binary the agents' hooks run.
-- `Sources/KithPowerHelper`: the optional root helper for closed-lid mode.
+- `Sources/KithPowerHelper`: the optional root helper for finish actions and legacy power recovery.
 - `Tests/`: Swift Testing unit tests and the `Tests/Smoke` checks run by `scripts/smoke-core.sh`.
 
 ## Pull requests

@@ -30,9 +30,6 @@ public struct PowerPreferences: Codable, Equatable, Sendable {
     public var batteryWarning = 20
     public var batteryFloor = 10
     public var keepDisplayAwake = false
-    public var saveEnergy = false
-    public var lowPowerFloor = 40
-    public var lowPowerWithLidClosed = false
     public var muteWithLidClosed = false
     public var networkAlerts = true
     public var browserDiagnostics = true
@@ -42,8 +39,7 @@ public struct PowerPreferences: Codable, Equatable, Sendable {
     public func validated() throws -> Self {
         guard maximumSeconds.isFinite, (60...86_400).contains(maximumSeconds),
               (1...30).contains(batteryFloor),
-              (batteryFloor...100).contains(batteryWarning),
-              (batteryWarning...100).contains(lowPowerFloor) else {
+              (batteryFloor...100).contains(batteryWarning) else {
             throw PowerError.invalid("Power settings contain an invalid duration or battery threshold")
         }
         return self
@@ -75,7 +71,6 @@ public struct WakePeriod: Codable, Equatable, Sendable {
 public struct PowerDecision: Equatable, Sendable {
     public var hold = false
     public var display = false
-    public var lowPower = false
     public var reminder = false
     public var stop: WakeStop?
 }
@@ -173,13 +168,6 @@ public struct PowerPolicy: Codable, Equatable, Sendable {
         guard stopped == nil, let period, requested, now < period.deadline else { return decision }
         decision.hold = true
         decision.display = preferences.keepDisplayAwake
-        if preferences.saveEnergy {
-            if case .percent(let percent) = conditions.battery, !conditions.onAC, percent < preferences.lowPowerFloor {
-                decision.lowPower = true
-            }
-            if conditions.heat == .serious { decision.lowPower = true }
-            if preferences.lowPowerWithLidClosed && conditions.lidClosed { decision.lowPower = true }
-        }
         if period.deadline.timeIntervalSince(now) <= 300, remindedDeadline != period.deadline {
             decision.reminder = true
             remindedDeadline = period.deadline

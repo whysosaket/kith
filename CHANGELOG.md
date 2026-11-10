@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Add bounded automatic and manual wake periods, extension reminders, battery and thermal guardrails, and visible recovery status.
-- Add display-awake mode, optional Low Power Mode and lid-close audio muting, network warnings, and browser-throttling diagnostics.
+- Add display-awake mode, optional lid-close audio muting, network warnings, and browser-throttling diagnostics.
+- Remove the closed-lid sleep override and automatic Low Power Mode. Recover settings saved by earlier versions and expire awake holds if Kith becomes unresponsive.
 - Bundle the `kith power` CLI and add launch-at-login and user-initiated update settings.
 - Add power policy, helper recovery, audio, request protocol, and debug app-to-CLI end-to-end tests.
 

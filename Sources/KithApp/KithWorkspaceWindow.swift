@@ -121,7 +121,7 @@ struct KithWorkspaceWindow: View {
         switch pane {
         case .monitoring: model.hasMonitoringIssue
         case .notifications: model.notificationIssue != nil
-        case .power: model.wakeStopped != nil || model.powerStatus.recovery != .restored ||
+        case .power: model.wakeStopped != nil || model.powerRecoveryPending || model.systemSleepDisabled ||
             model.audioIssue != nil || model.audioRecoveryPending || model.networkWarning || model.controlIssue != nil
         case .general, .afterWork: false
         }
